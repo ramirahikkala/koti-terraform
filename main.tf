@@ -22,3 +22,7 @@ resource "aws_db_instance" "postgres" {
   password             = local.db_creds.password
 }
 
+
+resource "aws_s3_bucket" "koti-terraform-state-bucket" {
+  bucket = "koti-terraform-state-bucket"
+}
