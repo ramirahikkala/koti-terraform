@@ -158,8 +158,9 @@ resource "aws_lambda_permission" "koti_hello_lambda_permission" {
   function_name = aws_lambda_function.koti_hello_lambda.function_name
   principal     = "apigateway.amazonaws.com"
 
-  source_arn = "${aws_api_gateway_rest_api.koti.execution_arn}/*/*/*"
+  source_arn = "${aws_api_gateway_rest_api.koti.execution_arn}/*/GET/hello"
 }
+
 
 data "archive_file" "hello_lambda" {
   type        = "zip"
@@ -209,11 +210,18 @@ resource "aws_api_gateway_deployment" "koti_hello_deployment" {
   triggers = {
     redeployment_lambda = sha1(jsonencode(aws_lambda_function.koti_hello_lambda))
   }
+
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
+
 output "koti_hello_url" {
-  value = "${aws_api_gateway_deployment.koti_hello_deployment.invoke_url}${aws_api_gateway_resource.koti_hello_resource.path}"
+  value = "${aws_api_gateway_deployment.koti_hello_deployment.invoke_url}${aws_api_gateway_stage.koti_hello_test_stage.stage_name}${aws_api_gateway_resource.koti_hello_resource.path}"
 }
+
 
 resource "aws_api_gateway_stage" "koti_hello_test_stage" {
   rest_api_id = aws_api_gateway_rest_api.koti.id
