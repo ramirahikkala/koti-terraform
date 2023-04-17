@@ -22,30 +22,21 @@ module "api_gateway" {
   common_tags = local.common_tags
   lambda_arn = module.lambda.lambda_arn
   lambda_function_name = "koti_hello_lambda"
+  insert_ruuvi_data_lambda_invoke_arn = module.lambda.insert_ruuvi_data_lambda_invoke_arn
 }
 
 module "lambda" {
   source = "./modules/lambda"
   rest_api_id = module.api_gateway.rest_api_id
-}
-
-module "bastion" {
-  source = "./modules/bastion"
-  common_tags = local.common_tags
-  postgres_security_group_id = module.postgres_db.postgres_security_group_id
-}
-
-module "postgres_db" {
-  source = "./modules/postgres_db"
-  username      = local.db_creds.username
-  password      = local.db_creds.password
-  common_tags   = local.common_tags
-  bastion_sg_id = module.bastion.bastion_sg_id
+  dynamodb_table_arn = module.dynamo_db.ruuvi_table_arn
 }
 
 module "S3_bucket" {
   source = "./modules/S3_bucket"
 }
 
-
+module "dynamo_db" {
+  source = "./modules/dynamo_db"
+  common_tags = local.common_tags
+}
 

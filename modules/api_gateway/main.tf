@@ -53,3 +53,41 @@ resource "aws_api_gateway_stage" "koti_hello_test_stage" {
   deployment_id = aws_api_gateway_deployment.koti_hello_deployment.id
   stage_name = "example-stage"
 }
+
+
+resource "aws_api_gateway_resource" "insert_data_resource" {
+  parent_id   = aws_api_gateway_rest_api.koti.root_resource_id
+  path_part   = "insert-data"
+  rest_api_id = aws_api_gateway_rest_api.koti.id
+}
+
+resource "aws_api_gateway_method" "insert_data_post" {
+  rest_api_id   = aws_api_gateway_rest_api.koti.id
+  resource_id   = aws_api_gateway_resource.insert_data_resource.id
+  http_method   = "POST"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "insert_ruuvi_data_lambda_integration" {
+  rest_api_id = aws_api_gateway_rest_api.koti.id
+  resource_id = aws_api_gateway_resource.insert_data_resource.id
+  http_method = aws_api_gateway_method.insert_data_post.http_method
+
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = var.insert_ruuvi_data_lambda_invoke_arn
+}
+
+
+resource "aws_api_gateway_deployment" "insert_ruuvi_data_deployment" {
+  depends_on = [
+    aws_api_gateway_integration.insert_ruuvi_data_lambda_integration
+  ]
+
+  rest_api_id = aws_api_gateway_rest_api.koti.id
+  stage_name  = "test"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}

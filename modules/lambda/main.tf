@@ -55,5 +55,48 @@ resource "aws_iam_role_policy_attachment" "lambda_basic_execution" {
   role       = aws_iam_role.lambda_role.name
 }
 
+resource "aws_lambda_function" "insert_ruuvi_data_lambda" {
+  function_name = "insert_ruuvi_data"
+  handler       = "insert_ruuvi_data.lambda_handler"
+  role          = aws_iam_role.lambda_role.arn
+  runtime       = "python3.8"
+
+  filename         = data.archive_file.insert_ruuvi_data_lambda.output_path
+  source_code_hash = data.archive_file.insert_ruuvi_data_lambda.output_base64sha256
+}
+
+data "archive_file" "insert_ruuvi_data_lambda" {
+  type        = "zip"
+  source_file = "insert_ruuvi_data_lambda/insert_ruuvi_data.py"
+  output_path = "insert_ruuvi_data_lambda/insert_ruuvi_data.zip"
+}
+
+resource "aws_lambda_permission" "insert_ruuvi_data_lambda_permission" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.insert_ruuvi_data_lambda.function_name
+  principal     = "apigateway.amazonaws.com"
+
+  source_arn = "arn:aws:execute-api:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:${var.rest_api_id}/*/POST/insert-data"
+}
+
+
+data "aws_iam_policy_document" "dynamodb_policy" {
+  statement {
+    actions = [
+      "dynamodb:PutItem",
+    ]
+    resources = [
+      var.dynamodb_table_arn,
+    ]
+  }
+}
+
+
+resource "aws_iam_role_policy" "dynamodb_policy" {
+  name   = "DynamoDBAccessPolicy"
+  role   = aws_iam_role.lambda_role.id
+  policy = data.aws_iam_policy_document.dynamodb_policy.json
+}
 
 
