@@ -40,3 +40,13 @@ module "dynamo_db" {
   common_tags = local.common_tags
 }
 
+resource "aws_secretsmanager_secret" "raspberry_pi_api_key" {
+  name        = "raspberry_pi_api_key"
+  description = "API key for Raspberry Pi to access the API Gateway"
+}
+
+resource "aws_secretsmanager_secret_version" "raspberry_pi_api_key" {
+  secret_id     = aws_secretsmanager_secret.raspberry_pi_api_key.id
+  secret_string = module.api_gateway.raspberry_pi_api_key
+}
+
