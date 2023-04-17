@@ -4,9 +4,11 @@ output "rest_api_id" {
 }
 
 output "invoke_url" {
-  description = "The base URL of the API Gateway"
-  value       = aws_api_gateway_deployment.insert_ruuvi_data_deployment.invoke_url
+  description = "The URL to invoke the API Gateway"
+  value       = aws_api_gateway_deployment.post_ruuvi_data_deployment.invoke_url
 }
+
+
 
 
 output "raspberry_pi_api_key" {
