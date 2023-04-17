@@ -16,6 +16,7 @@ resource "aws_api_gateway_method" "koti_hello_get" {
   resource_id   = aws_api_gateway_resource.koti_hello_resource.id
   http_method   = "GET"
   authorization = "NONE"
+  api_key_required = true
 }
 
 
@@ -66,6 +67,7 @@ resource "aws_api_gateway_method" "insert_data_post" {
   resource_id   = aws_api_gateway_resource.insert_data_resource.id
   http_method   = "POST"
   authorization = "NONE"
+  api_key_required = true
 }
 
 resource "aws_api_gateway_integration" "insert_ruuvi_data_lambda_integration" {
@@ -90,4 +92,24 @@ resource "aws_api_gateway_deployment" "insert_ruuvi_data_deployment" {
   lifecycle {
     create_before_destroy = true
   }
+}
+
+resource "aws_api_gateway_api_key" "raspberry_pi_key" {
+  name = "raspberry-pi-key"
+}
+
+resource "aws_api_gateway_usage_plan" "raspberry_pi_usage_plan" {
+  name        = "RaspberryPiUsagePlan"
+  description = "Usage plan for Raspberry Pi"
+
+  api_stages {
+    api_id = aws_api_gateway_rest_api.koti.id
+    stage  = aws_api_gateway_stage.koti_hello_test_stage.stage_name
+  }
+}
+
+resource "aws_api_gateway_usage_plan_key" "raspberry_pi_usage_plan_key" {
+  key_id        = aws_api_gateway_api_key.raspberry_pi_key.id
+  key_type      = "API_KEY"
+  usage_plan_id = aws_api_gateway_usage_plan.raspberry_pi_usage_plan.id
 }
