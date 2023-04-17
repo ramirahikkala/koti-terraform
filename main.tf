@@ -20,8 +20,6 @@ locals {
 module "api_gateway" {
   source = "./modules/api_gateway"
   common_tags = local.common_tags
-  lambda_arn = module.lambda.lambda_arn
-  lambda_function_name = "koti_hello_lambda"
   insert_ruuvi_data_lambda_invoke_arn = module.lambda.insert_ruuvi_data_lambda_invoke_arn
 }
 
