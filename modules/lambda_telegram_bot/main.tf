@@ -73,3 +73,12 @@ resource "aws_lambda_layer_version" "requests_layer" {
   filename   = "layer.zip"
   compatible_runtimes = ["python3.9"]
 }
+
+resource "null_resource" "install_requests" {
+  provisioner "local-exec" {
+    command = "pip install requests -t lambda_layer/python"
+  }
+  triggers = {
+    always_run = "${timestamp()}"
+  }
+}
