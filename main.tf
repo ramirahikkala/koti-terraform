@@ -6,6 +6,10 @@ data "aws_secretsmanager_secret_version" "creds" {
   secret_id = "koti/postgres/admin"
 }
 
+data "aws_secretsmanager_secret_version" "telegram_bot_secrets" {
+  secret_id = "koti/telegram_bot_secrets"
+}
+
 locals {
   db_creds = jsondecode(
     data.aws_secretsmanager_secret_version.creds.secret_string
@@ -14,6 +18,9 @@ locals {
     Terraform = "true"
     Environment = "production"
   }
+  telegram_bot_secrets = jsondecode(
+    data.aws_secretsmanager_secret_version.telegram_bot_secrets.secret_string
+  )
 }
 
 
@@ -48,3 +55,14 @@ resource "aws_secretsmanager_secret_version" "raspberry_pi_api_key" {
   secret_string = module.api_gateway.raspberry_pi_api_key
 }
 
+module "lambda_telegram_bot" {
+  source        = "./modules/lambda_telegram_bot"
+  telegram_token = local.telegram_bot_secrets.token
+  dynamodb_table_arn = module.dynamo_db.ruuvi_table_arn
+}
+
+module "api_gateway_telegram_bot" {
+  source = "./modules/api_gateway_telegram_bot"
+  common_tags = local.common_tags
+  telegram_bot_invoke_arn = module.lambda_telegram_bot.telegram_bot_lambda_invoke_arn
+}
