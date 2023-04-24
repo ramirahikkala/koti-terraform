@@ -1,0 +1,73 @@
+---
+
+- name: Configure ruuvi_data_collector
+  hosts: ruuvi_data_collector
+  become: yes
+  tasks:
+    - name: Install bluez-hcidump
+      apt:
+        name: bluez-hcidump
+        state: present
+      register: bluez_install_result
+
+    - name: Display install successful message
+      ansible.builtin.debug:
+        msg: "+++ install successful +++"
+      when: bluez_install_result is changed
+
+    - name: Install setuptools
+      ansible.builtin.pip:
+        name: setuptools
+        state: latest
+        executable: pip3
+
+    - name: Install ruuvitag-sensor
+      ansible.builtin.pip:
+        name: ruuvitag-sensor
+        state: present
+        executable: pip3
+    
+    - name: Install requests
+      ansible.builtin.pip:
+        name: requests
+        state: present
+        executable: pip3
+
+    - name: Fetch API key from Secrets Manager
+      set_fact:
+        api_key: "{{ lookup('amazon.aws.aws_secret', 'raspberry_pi_api_key') }}"
+
+    - name: Copy the Python script to the Raspberry Pi
+      ansible.builtin.copy:
+        src: ruuvaa.py
+        dest: /home/ansible/ruuvaa.py
+        owner: ansible
+        group: ansible
+        mode: '0755'
+      register: python_script_copied
+
+    - name: Create a systemd service file for the Python script
+      ansible.builtin.template:
+        src: ruuvaa.py.service.j2
+        dest: "/etc/systemd/system/ruuvaa.service"
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Reload systemd and enable the Python script service
+      ansible.builtin.systemd:
+        daemon_reload: yes
+        name: ruuvaa
+        enabled: yes
+        state: started
+    
+    - name: Restart ruuvaa service if Python script changed
+      ansible.builtin.systemd:
+        name: ruuvaa
+        state: restarted
+        daemon_reload: yes
+      when: python_script_copied.changed
+
+    
+
+        

@@ -1,0 +1,11 @@
+---
+- name: Configure Raspberry Pi
+  hosts: heating_controller
+  become: yes
+  tasks:
+    - name: Update and upgrade packages
+      apt:
+        update_cache: yes
+        upgrade: yes
+
+    # Add any additional tasks here

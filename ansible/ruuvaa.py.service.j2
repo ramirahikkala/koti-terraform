@@ -1,0 +1,14 @@
+[Unit]
+Description=Python script to send RuuviTag data
+After=network.target
+
+[Service]
+Type=simple
+User=ansible
+WorkingDirectory=/home/ansible/
+Environment="RUUVI_API_KEY={{ api_key }}"
+ExecStart=/usr/bin/python3 /home/ansible/ruuvaa.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
