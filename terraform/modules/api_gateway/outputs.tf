@@ -5,7 +5,7 @@ output "rest_api_id" {
 
 output "invoke_url" {
   description = "The URL to invoke the API Gateway"
-  value       = aws_api_gateway_deployment.post_ruuvi_data_deployment.invoke_url
+  value       = aws_api_gateway_deployment.koti_deployment.invoke_url
 }
 
 

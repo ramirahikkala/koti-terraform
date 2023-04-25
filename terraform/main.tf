@@ -28,12 +28,14 @@ module "api_gateway" {
   source = "./modules/api_gateway"
   common_tags = local.common_tags
   insert_ruuvi_data_lambda_invoke_arn = module.lambda.insert_ruuvi_data_lambda_invoke_arn
+  get_latest_ruuvi_data_lambda_invoke_arn = module.lambda.get_latest_ruuvi_data_lambda_invoke_arn
 }
 
 module "lambda" {
   source = "./modules/lambda"
   rest_api_id = module.api_gateway.rest_api_id
   dynamodb_table_arn = module.dynamo_db.ruuvi_table_arn
+  ruuvi_config_table_arn = module.dynamo_db.ruuvi_config_table_arn
 }
 
 module "S3_bucket" {
