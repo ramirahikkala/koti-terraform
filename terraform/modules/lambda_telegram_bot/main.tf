@@ -52,7 +52,7 @@ resource "aws_iam_role_policy_attachment" "lambda_basic_execution" {
 data "aws_iam_policy_document" "lambda_permissions" {
   statement {
     actions   = ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:Scan"]
-    resources = [var.dynamodb_table_arn]
+    resources = [var.dynamodb_table_arn, var.ruuvi_config_table_arn]
   }
 }
 

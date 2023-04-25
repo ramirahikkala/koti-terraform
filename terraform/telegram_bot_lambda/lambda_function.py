@@ -13,6 +13,22 @@ TELEGRAM_API_URL = f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/'
 dynamodb = boto3.resource('dynamodb')
 table = dynamodb.Table('ruuvi')
 
+def get_configuration():
+    dynamodb = boto3.resource('dynamodb')
+    config_table = dynamodb.Table('ruuvi_configuration')
+    response = config_table.scan()
+    data = response['Items']
+    config = {}
+    for item in data:
+        mac = item['mac']
+        config[mac] = {
+            'name': item['name'],
+            'temperatureOffset': item.get('temperatureOffset', 0),
+            'temperatureMonitoring_high': item.get('temperatureMonitoring_high', None),
+            'temperatureMonitoring_low': item.get('temperatureMonitoring_low', None)
+        }
+    return config
+
 
 def get_distinct_names():
     response = table.scan(
@@ -31,24 +47,29 @@ def get_distinct_names():
     return names
 
 
-def get_latest_measurement(name):
+def get_latest_measurement(mac, config):
     response = table.query(
-        KeyConditionExpression=Key('name').eq(name),
+        KeyConditionExpression=Key('name').eq(mac),
         ScanIndexForward=False, # Sort by datetime in descending order
         Limit=1
     )
-    item = response['Items'][0]
-    dt = datetime.strptime(item['datetime'], '%Y-%m-%dT%H:%M:%S.%fZ')
-    temp = item['temperature_calibrated']
-    return {'datetime': dt, 'temperature': temp}
+    if(response['Items']):
+        item = response['Items'][0]
+        dt = datetime.strptime(item['datetime'], '%Y-%m-%dT%H:%M:%S.%fZ')
+        temp = float(item['temperature']) + float(config[mac]['temperatureOffset'])
+        return {'datetime': dt, 'temperature': temp}
+    return None
+
+
 
 def get_latest_temperatures():
-    names = get_distinct_names()
+    config = get_configuration()
     latest_temps = {}
-    for name in names:
-        latest_temps[name] = get_latest_measurement(name)
+    for mac, data in config.items():
+        measurement = get_latest_measurement(mac, config)
+        if measurement is not None:
+            latest_temps[data["name"]] = measurement
     return latest_temps
-
 
 
 def send_message(chat_id, text):
@@ -71,6 +92,7 @@ def process_update(update):
     message = update.get("message", {})
     text = message.get("text", "")
     chat_id = message["chat"]["id"]
+    
     if text == "/temps":
         latest_temps = get_latest_temperatures()
         response_text = "Lämpötilat:\n"
