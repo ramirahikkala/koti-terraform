@@ -1,6 +1,6 @@
 ---
 - name: Configure Raspberry Pi
-  hosts: heating_controller
+  hosts: data_collectors
   become: yes
   tasks:
     - name: Update and upgrade packages

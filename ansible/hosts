@@ -1,7 +1,8 @@
 
 [heating_controller]
-raspberrypi.local ansible_user=ansible ansible_ssh_private_key_file=~/.ssh/ansible_id_ed25519
+heatingcontroller.local ansible_user=ansible ansible_ssh_private_key_file=~/.ssh/ansible_id_ed25519
 
-[ruuvi_data_collector]
+[data_collectors]
 ruuvidatacollector.local ansible_user=ansible ansible_ssh_private_key_file=~/.ssh/ansible_id_ed25519
+heatingcontroller.local ansible_user=ansible ansible_ssh_private_key_file=~/.ssh/ansible_id_ed25519
 

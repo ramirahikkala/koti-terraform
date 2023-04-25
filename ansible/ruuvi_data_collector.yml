@@ -1,7 +1,7 @@
 ---
 
 - name: Configure ruuvi_data_collector
-  hosts: ruuvi_data_collector
+  hosts: data_collectors
   become: yes
   tasks:
     - name: Install bluez-hcidump
