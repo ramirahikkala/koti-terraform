@@ -60,6 +60,7 @@ module "lambda_telegram_bot" {
   telegram_token = local.telegram_bot_secrets.token
   dynamodb_table_arn = module.dynamo_db.ruuvi_table_arn
   ruuvi_config_table_arn = module.dynamo_db.ruuvi_config_table_arn
+  ruuvi_subscribers_table_arn = module.dynamo_db.ruuvi_subscribers_table_arn
 }
 
 module "api_gateway_telegram_bot" {

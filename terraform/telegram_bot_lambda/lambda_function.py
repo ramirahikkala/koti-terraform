@@ -9,7 +9,10 @@ from botocore.exceptions import ClientError
 
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
 TELEGRAM_API_URL = f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/'
+SUBSCRIPTION_TABLE_NAME = 'ruuvi_subscribers'
 
+dynamodb_subscriber = boto3.resource('dynamodb')
+subscriber_table = dynamodb_subscriber.Table(SUBSCRIPTION_TABLE_NAME)
 dynamodb = boto3.resource('dynamodb')
 table = dynamodb.Table('ruuvi')
 
@@ -88,6 +91,22 @@ def send_message(chat_id, text):
     except requests.exceptions.HTTPError as e:
         print(f"An error occurred sending the message: {e}")
 
+def subscribe(chat_id):
+    try:
+        subscriber_table.put_item(Item={'chat_id': chat_id})
+        return True
+    except ClientError as e:
+        print(f"Error subscribing chat ID {chat_id}: {e}")
+        return False
+
+def unsubscribe(chat_id):
+    try:
+        subscriber_table.delete_item(Key={'chat_id': chat_id})
+        return True
+    except ClientError as e:
+        print(f"Error unsubscribing chat ID {chat_id}: {e}")
+        return False
+
 def process_update(update):
     message = update.get("message", {})
     text = message.get("text", "")
@@ -111,6 +130,17 @@ def process_update(update):
             response_text += "\n"
 
         send_message(chat_id, response_text)
+        
+    elif text == "/subscribe":
+        if subscribe(chat_id):
+            send_message(chat_id, "Subscribed successfully! You will now receive temperature alarms.")
+        else:
+            send_message(chat_id, "Error subscribing. Please try again.")
+    elif text == "/unsubscribe":
+        if unsubscribe(chat_id):
+            send_message(chat_id, "Unsubscribed successfully! You will no longer receive temperature alarms.")
+        else:
+            send_message(chat_id, "Error unsubscribing. Please try again.")
 
 def lambda_handler(event, context):
     try:        

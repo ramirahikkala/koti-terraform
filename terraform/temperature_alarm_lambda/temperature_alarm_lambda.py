@@ -1,0 +1,134 @@
+import json
+import requests
+import boto3
+from boto3.dynamodb.conditions import Key
+from datetime import datetime
+import os
+
+TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
+TELEGRAM_API_URL = f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage'
+TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID')
+SUBSCRIPTION_TABLE_NAME = 'ruuvi_subscribers'
+
+dynamodb = boto3.resource('dynamodb')
+config_table = dynamodb.Table('ruuvi_configuration')
+data_table = dynamodb.Table('ruuvi')
+dynamodb_subscriber = boto3.resource('dynamodb')
+subscriber_table = dynamodb_subscriber.Table(SUBSCRIPTION_TABLE_NAME)
+
+def get_subscribers():
+    response = subscriber_table.scan()
+    data = response['Items']
+    subscribers = [item['chat_id'] for item in data]
+    return subscribers
+
+def get_configuration():
+    response = config_table.scan()
+    data = response['Items']
+    config = {}
+    for item in data:
+        mac = item['mac']
+        config[mac] = {
+            'name': item['name'],
+            'temperatureOffset': item.get('temperatureOffset', 0),
+            'temperatureMonitoring_high': item.get('temperatureMonitoring_high', None),
+            'temperatureMonitoring_low': item.get('temperatureMonitoring_low', None),
+            'lastAlarmState': item.get('lastAlarmState', None),
+        }
+    return config
+
+def update_alarm_state(mac, state):
+    response = config_table.update_item(
+        Key={
+            'mac': mac,
+        },
+        UpdateExpression="set lastAlarmState=:s",
+        ExpressionAttributeValues={
+            ':s': state
+        },
+        ReturnValues="UPDATED_NEW"
+    )
+
+def get_latest_measurement(mac):
+    response = data_table.query(
+        KeyConditionExpression=Key('name').eq(mac),
+        ScanIndexForward=False,  # Sort by datetime in descending order
+        Limit=1
+    )
+    if response['Items']:
+        item = response['Items'][0]
+        dt = datetime.strptime(item['datetime'], '%Y-%m-%dT%H:%M:%S.%fZ')
+        temp = item['temperature']
+        return {'datetime': dt, 'temperature': temp}
+    return None
+
+def check_temperature_limits():
+    
+    config = get_configuration()
+    
+    subscribers = get_subscribers()
+    
+
+    for mac, data in config.items():
+        
+        # Get the latest temperature measurement for the current name
+        latest_measurement = get_latest_measurement(mac)
+
+        if latest_measurement:
+            calibrated_temperature = float(latest_measurement['temperature']) + float(data['temperatureOffset'])
+            high_limit = float(data['temperatureMonitoring_high']) if data['temperatureMonitoring_high'] is not None else None
+            low_limit = float(data['temperatureMonitoring_low']) if data['temperatureMonitoring_low'] is not None else None
+            last_alarm_state = data['lastAlarmState']
+
+            alarm_triggered = False
+            message = ""
+
+            if high_limit is not None and calibrated_temperature > high_limit:
+                if last_alarm_state != 'HIGH':
+                    message = f"Temperature alarm: {data['name']} is too high ({calibrated_temperature}°C)"
+                    update_alarm_state(mac, 'HIGH')
+                    alarm_triggered = True
+
+            elif low_limit is not None and calibrated_temperature < low_limit:
+                if last_alarm_state != 'LOW':
+                    message = f"Temperature alarm: {data['name']} is too low ({calibrated_temperature}°C)"
+                    update_alarm_state(mac, 'LOW')
+                    alarm_triggered = True
+
+            elif last_alarm_state is not None:
+                message = f"Temperature back to normal: {data['name']} ({calibrated_temperature}°C)"
+                update_alarm_state(mac, None)
+                alarm_triggered = True
+
+            if alarm_triggered:
+                for chat_id in subscribers:
+                    send_telegram_message(chat_id, message)
+
+def send_telegram_message(chat_id, text):
+    payload = {
+        "chat_id": chat_id,
+        "text": text
+    }
+    headers = {
+        "Content-Type": "application/json"
+    }
+
+    try:
+        response = requests.post(TELEGRAM_API_URL, json=payload, headers=headers)
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        print(f"An error occurred sending the message: {e}")
+
+def lambda_handler(event, context):
+    print("Running handler")
+    try:
+        check_temperature_limits()
+        print("Returining from handler")
+        return {'statusCode': 200, 'body': json.dumps({'message': 'Temperature check completed'})}
+    except Exception as e:
+        print(e)
+        return {'statusCode': 500, 'body': json.dumps({'message': 'Error checking temperature limits'})}
+
+if __name__ == "__main__":
+    lambda_handler(None, None)
+

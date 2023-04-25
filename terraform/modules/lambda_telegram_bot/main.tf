@@ -48,13 +48,13 @@ resource "aws_iam_role_policy_attachment" "lambda_basic_execution" {
   role       = aws_iam_role.lambda_execution_role.name
 }
 
-
 data "aws_iam_policy_document" "lambda_permissions" {
   statement {
-    actions   = ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:Scan"]
-    resources = [var.dynamodb_table_arn, var.ruuvi_config_table_arn]
+    actions   = ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:Scan", "dynamodb:PutItem", "dynamodb:DeleteItem", "dynamodb:UpdateItem"]
+    resources = [var.dynamodb_table_arn, var.ruuvi_config_table_arn, var.ruuvi_subscribers_table_arn]
   }
 }
+
 
 data "archive_file" "telegram_bot_lambda" {
   type        = "zip"
@@ -82,3 +82,52 @@ resource "null_resource" "install_requests" {
     always_run = "${timestamp()}"
   }
 }
+
+resource "aws_lambda_function" "temperature_alarm" {
+  function_name    = "temperature_alarm"
+  handler          = "temperature_alarm_lambda.lambda_handler"
+  runtime          = "python3.9"
+  timeout          = 10
+  memory_size      = 128
+
+  role             = aws_iam_role.lambda_execution_role.arn
+  filename         = data.archive_file.temperature_alarm_lambda.output_path
+
+  source_code_hash = data.archive_file.temperature_alarm_lambda.output_base64sha256
+
+  layers = [aws_lambda_layer_version.requests_layer.arn]
+
+  environment {
+    variables = {
+      TELEGRAM_TOKEN = var.telegram_token
+    }
+  }
+}
+
+data "archive_file" "temperature_alarm_lambda" {
+  type        = "zip"
+  source_dir = "temperature_alarm_lambda/"
+  output_path = "temperature_alarm_lambda_function.zip"
+}
+
+
+resource "aws_cloudwatch_event_rule" "every_five_minutes" {
+  name                = "every-five-minutes"
+  description         = "Fires every five minutes"
+  schedule_expression = "rate(1 minute)"
+}
+
+resource "aws_cloudwatch_event_target" "temperature_alarm_lambda" {
+  rule      = aws_cloudwatch_event_rule.every_five_minutes.name
+  target_id = "temperature_alarm_lambda"
+  arn       = aws_lambda_function.temperature_alarm.arn
+}
+
+resource "aws_lambda_permission" "allow_cloudwatch" {
+  statement_id  = "AllowExecutionFromCloudWatch"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.temperature_alarm.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.every_five_minutes.arn
+}
+
