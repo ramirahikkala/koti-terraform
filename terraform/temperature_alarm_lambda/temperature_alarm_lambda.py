@@ -62,6 +62,10 @@ def get_latest_measurement(mac):
         return {'datetime': dt, 'temperature': temp}
     return None
 
+def is_daytime():
+    now = datetime.now()
+    return now.hour >= 8 and now.hour <= 22
+
 def check_temperature_limits():
     
     config = get_configuration()
@@ -78,27 +82,40 @@ def check_temperature_limits():
             calibrated_temperature = float(latest_measurement['temperature']) + float(data['temperatureOffset'])
             high_limit = float(data['temperatureMonitoring_high']) if data['temperatureMonitoring_high'] is not None else None
             low_limit = float(data['temperatureMonitoring_low']) if data['temperatureMonitoring_low'] is not None else None
+            critical_low_limit = float(data['temperatureMonitoring_critical_low']) if data['temperatureMonitoring_critical_low'] is not None else None
+            critical_high_limit = float(data['temperatureMonitoring_critical_high']) if data['temperatureMonitoring_critical_high'] is not None else None
             last_alarm_state = data['lastAlarmState']
 
             alarm_triggered = False
             message = ""
 
-            if high_limit is not None and calibrated_temperature > high_limit:
-                if last_alarm_state != 'HIGH':
-                    message = f"Temperature alarm: {data['name']} is too high ({calibrated_temperature}°C)"
-                    update_alarm_state(mac, 'HIGH')
+            if critical_high_limit is not None and calibrated_temperature > critical_high_limit:
+                if last_alarm_state != 'CRITICAL_HIGH':
+                    message = f"Cricital temperature alarm: {data['name']} is too high ({calibrated_temperature}°C)"
+                    update_alarm_state(mac, 'CRITICAL_HIGH')
                     alarm_triggered = True
-
-            elif low_limit is not None and calibrated_temperature < low_limit:
-                if last_alarm_state != 'LOW':
-                    message = f"Temperature alarm: {data['name']} is too low ({calibrated_temperature}°C)"
-                    update_alarm_state(mac, 'LOW')
+            elif critical_low_limit is not None and calibrated_temperature < critical_low_limit:
+                if last_alarm_state != 'CRITICAL_LOW':
+                    message = f"Critical temperature alarm: {data['name']} is too low ({calibrated_temperature}°C)"
+                    update_alarm_state(mac, 'CRITICAL_LOW')
                     alarm_triggered = True
+            elif is_daytime():
+                if high_limit is not None and calibrated_temperature > high_limit:
+                    if last_alarm_state != 'HIGH' and last_alarm_state != 'CRITICAL_HIGH':
+                        message = f"Temperature alarm: {data['name']} is too high ({calibrated_temperature}°C)"
+                        update_alarm_state(mac, 'HIGH')
+                        alarm_triggered = True
 
-            elif last_alarm_state is not None:
-                message = f"Temperature back to normal: {data['name']} ({calibrated_temperature}°C)"
-                update_alarm_state(mac, None)
-                alarm_triggered = True
+                elif low_limit is not None and calibrated_temperature < low_limit:
+                    if last_alarm_state != 'LOW' and last_alarm_state != 'CRITICAL_LOW':
+                        message = f"Temperature alarm: {data['name']} is too low ({calibrated_temperature}°C)"
+                        update_alarm_state(mac, 'LOW')
+                        alarm_triggered = True
+
+                elif last_alarm_state is not None:
+                    message = f"Temperature back to normal: {data['name']} ({calibrated_temperature}°C)"
+                    update_alarm_state(mac, None)
+                    alarm_triggered = True
 
             if alarm_triggered:
                 for chat_id in subscribers:
