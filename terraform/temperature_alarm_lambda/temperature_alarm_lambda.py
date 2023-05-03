@@ -34,9 +34,12 @@ def get_configuration():
             'temperatureOffset': item.get('temperatureOffset', 0),
             'temperatureMonitoring_high': item.get('temperatureMonitoring_high', None),
             'temperatureMonitoring_low': item.get('temperatureMonitoring_low', None),
+            'temperatureMonitoring_critical_low': item.get('temperatureMonitoring_critical_low', None),
+            'temperatureMonitoring_critical_high': item.get('temperatureMonitoring_critical_high', None),
             'lastAlarmState': item.get('lastAlarmState', None),
         }
     return config
+
 
 def update_alarm_state(mac, state):
     response = config_table.update_item(
@@ -74,47 +77,47 @@ def check_temperature_limits():
     subscribers = get_subscribers()
     
 
-    for mac, data in config.items():
+    for mac, config_data in config.items():
         
         # Get the latest temperature measurement for the current name
         latest_measurement = get_latest_measurement(mac)
 
         if latest_measurement:
-            calibrated_temperature = float(latest_measurement['temperature']) + float(data['temperatureOffset'])
-            high_limit = float(data['temperatureMonitoring_high']) if data['temperatureMonitoring_high'] is not None else None
-            low_limit = float(data['temperatureMonitoring_low']) if data['temperatureMonitoring_low'] is not None else None
-            critical_low_limit = float(data['temperatureMonitoring_critical_low']) if data['temperatureMonitoring_critical_low'] is not None else None
-            critical_high_limit = float(data['temperatureMonitoring_critical_high']) if data['temperatureMonitoring_critical_high'] is not None else None
-            last_alarm_state = data['lastAlarmState']
+            calibrated_temperature = float(latest_measurement['temperature']) + float(config_data['temperatureOffset'])
+            high_limit = float(config_data['temperatureMonitoring_high']) if config_data['temperatureMonitoring_high'] is not None else None
+            low_limit = float(config_data['temperatureMonitoring_low']) if config_data['temperatureMonitoring_low'] is not None else None
+            critical_low_limit = float(config_data['temperatureMonitoring_critical_low']) if config_data['temperatureMonitoring_critical_low'] is not None else None
+            critical_high_limit = float(config_data['temperatureMonitoring_critical_high']) if config_data['temperatureMonitoring_critical_high'] is not None else None
+            last_alarm_state = config_data['lastAlarmState']
 
             alarm_triggered = False
             message = ""
 
             if critical_high_limit is not None and calibrated_temperature > critical_high_limit:
                 if last_alarm_state != 'CRITICAL_HIGH':
-                    message = f"Cricital temperature alarm: {data['name']} is too high ({calibrated_temperature}°C)"
+                    message = f"Cricital temperature alarm: {config_data['name']} is too high ({calibrated_temperature}°C)"
                     update_alarm_state(mac, 'CRITICAL_HIGH')
                     alarm_triggered = True
             elif critical_low_limit is not None and calibrated_temperature < critical_low_limit:
                 if last_alarm_state != 'CRITICAL_LOW':
-                    message = f"Critical temperature alarm: {data['name']} is too low ({calibrated_temperature}°C)"
+                    message = f"Critical temperature alarm: {config_data['name']} is too low ({calibrated_temperature}°C)"
                     update_alarm_state(mac, 'CRITICAL_LOW')
                     alarm_triggered = True
             elif is_daytime():
                 if high_limit is not None and calibrated_temperature > high_limit:
                     if last_alarm_state != 'HIGH' and last_alarm_state != 'CRITICAL_HIGH':
-                        message = f"Temperature alarm: {data['name']} is too high ({calibrated_temperature}°C)"
+                        message = f"Temperature alarm: {config_data['name']} is too high ({calibrated_temperature}°C)"
                         update_alarm_state(mac, 'HIGH')
                         alarm_triggered = True
 
                 elif low_limit is not None and calibrated_temperature < low_limit:
                     if last_alarm_state != 'LOW' and last_alarm_state != 'CRITICAL_LOW':
-                        message = f"Temperature alarm: {data['name']} is too low ({calibrated_temperature}°C)"
+                        message = f"Temperature alarm: {config_data['name']} is too low ({calibrated_temperature}°C)"
                         update_alarm_state(mac, 'LOW')
                         alarm_triggered = True
 
                 elif last_alarm_state is not None:
-                    message = f"Temperature back to normal: {data['name']} ({calibrated_temperature}°C)"
+                    message = f"Temperature back to normal: {config_data['name']} ({calibrated_temperature}°C)"
                     update_alarm_state(mac, None)
                     alarm_triggered = True
 
