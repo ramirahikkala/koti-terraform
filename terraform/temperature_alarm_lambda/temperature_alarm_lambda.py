@@ -4,6 +4,7 @@ import boto3
 from boto3.dynamodb.conditions import Key
 from datetime import datetime
 import os
+import traceback
 
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
 TELEGRAM_API_URL = f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage'
@@ -143,8 +144,10 @@ def lambda_handler(event, context):
         print("Returining from handler")
         return {'statusCode': 200, 'body': json.dumps({'message': 'Temperature check completed'})}
     except Exception as e:
-        print(e)
-        return {'statusCode': 500, 'body': json.dumps({'message': 'Error checking temperature limits'})}
+            print("Exception occurred:")
+            print(str(e))
+            print(traceback.format_exc())  # Print the complete traceback information
+            return {'statusCode': 500, 'body': json.dumps({'message': 'Error checking temperature limits'})}
 
 if __name__ == "__main__":
     lambda_handler(None, None)
