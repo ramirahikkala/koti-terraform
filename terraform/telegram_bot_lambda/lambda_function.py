@@ -23,9 +23,10 @@ def get_configuration():
     data = response['Items']
     config = {}
     for item in data:
-        mac = item['mac']
-        config[mac] = {
+        name = item['name']
+        config[name] = {
             'name': item['name'],
+            'mac': item['mac'],
             'temperatureOffset': item.get('temperatureOffset', 0),
             'temperatureMonitoring_high': item.get('temperatureMonitoring_high', None),
             'temperatureMonitoring_low': item.get('temperatureMonitoring_low', None)
@@ -50,17 +51,17 @@ def get_distinct_names():
     return names
 
 
-def get_latest_measurement(mac, config):
+def get_latest_measurement(name, config):
     response = table.query(
-        KeyConditionExpression=Key('name').eq(mac),
+        KeyConditionExpression=Key('name').eq(name),
         ScanIndexForward=False, # Sort by datetime in descending order
         Limit=1
     )
     if(response['Items']):
         item = response['Items'][0]
         dt = datetime.strptime(item['datetime'], '%Y-%m-%dT%H:%M:%S.%fZ')
-        temp = float(item['temperature']) + float(config[mac]['temperatureOffset'])
-        return {'datetime': dt, 'temperature': temp}
+        temp = item['temperature_calibrated']
+        return {'datetime': dt, 'temperature_calibrated': temp}
     return None
 
 
@@ -68,8 +69,8 @@ def get_latest_measurement(mac, config):
 def get_latest_temperatures():
     config = get_configuration()
     latest_temps = {}
-    for mac, data in config.items():
-        measurement = get_latest_measurement(mac, config)
+    for name, data in config.items():
+        measurement = get_latest_measurement(name, config)
         if measurement is not None:
             latest_temps[data["name"]] = measurement
     return latest_temps
@@ -118,7 +119,7 @@ def process_update(update):
 
         for name, data in latest_temps.items():
             dt = data['datetime']
-            temp = data['temperature']
+            temp = data['temperature_calibrated']
             response_text += f"{name}: {temp}°C"
 
             # Check if the data is older than 5 minutes

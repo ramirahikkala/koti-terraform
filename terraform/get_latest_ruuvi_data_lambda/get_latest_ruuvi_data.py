@@ -2,6 +2,7 @@ import json
 import boto3
 from boto3.dynamodb.conditions import Key
 from datetime import datetime
+import traceback
 
 dynamodb = boto3.resource('dynamodb')
 table = dynamodb.Table('ruuvi')
@@ -14,9 +15,10 @@ def get_configuration():
     data = response['Items']
     config = {}
     for item in data:
-        mac = item['mac']
-        config[mac] = {
+        name = item['name']
+        config[name] = {
             'name': item['name'],
+            'mac': item['mac'],
             'temperatureOffset': item.get('temperatureOffset', 0),
             'temperatureMonitoring_high': item.get('temperatureMonitoring_high', None),
             'temperatureMonitoring_low': item.get('temperatureMonitoring_low', None)
@@ -24,25 +26,25 @@ def get_configuration():
     return config
 
 
-def get_latest_measurement(mac, config):
+def get_latest_measurement(name, config):
     response = table.query(
-        KeyConditionExpression=Key('mac').eq(mac),
+        KeyConditionExpression=Key('name').eq(name),
         ScanIndexForward=False,  # Sort by datetime in descending order
         Limit=1
     )
     if(response['Items']):
         item = response['Items'][0]
         dt = datetime.strptime(item['datetime'], '%Y-%m-%dT%H:%M:%S.%fZ')
-        temp = float(item['temperature']) + float(config[mac]['temperatureOffset'])
-        return {'datetime': dt, 'temperature': temp}
+        temp = item['temperature_calibrated']
+        return {'datetime': dt, 'temperature_calibrated': temp}
     return None
 
 
 def get_latest_temperatures():
     config = get_configuration()
     latest_temps = {}
-    for mac, data in config.items():
-        measurement = get_latest_measurement(mac, config)
+    for name, data in config.items():
+        measurement = get_latest_measurement(name, config)
         if measurement is not None:
             latest_temps[data["name"]] = measurement
     return latest_temps
@@ -70,7 +72,9 @@ def lambda_handler(event, context):
             "body": json.dumps(response_dict)
         }
     except Exception as e:
-        print(e)
+        print("Exception occurred:")
+        print(str(e))
+        print(traceback.format_exc())  # Print the complete traceback information
         return {
             "statusCode": 400,
             "headers": {"Content-Type": "application/json"},
