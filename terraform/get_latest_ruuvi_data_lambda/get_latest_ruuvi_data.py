@@ -26,7 +26,7 @@ def get_configuration():
 
 def get_latest_measurement(mac, config):
     response = table.query(
-        KeyConditionExpression=Key('name').eq(mac),
+        KeyConditionExpression=Key('mac').eq(mac),
         ScanIndexForward=False,  # Sort by datetime in descending order
         Limit=1
     )
@@ -56,8 +56,8 @@ def lambda_handler(event, context):
         response_dict["temperatures"]["latest"] = {}
         
         for name, data in latest_temps.items():
-            temp = data['temperature']
-            response_dict["temperatures"]["latest"][name] = format(temp, '.2f')
+            temp = data['temperature_calibrated']
+            response_dict["temperatures"]["latest"][name] = temp
 
         return {
             "statusCode": 200,

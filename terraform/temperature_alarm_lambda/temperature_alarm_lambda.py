@@ -13,8 +13,7 @@ SUBSCRIPTION_TABLE_NAME = 'ruuvi_subscribers'
 dynamodb = boto3.resource('dynamodb')
 config_table = dynamodb.Table('ruuvi_configuration')
 data_table = dynamodb.Table('ruuvi')
-dynamodb_subscriber = boto3.resource('dynamodb')
-subscriber_table = dynamodb_subscriber.Table(SUBSCRIPTION_TABLE_NAME)
+subscriber_table = dynamodb.Table(SUBSCRIPTION_TABLE_NAME)
 
 def get_subscribers():
     response = subscriber_table.scan()
@@ -75,7 +74,7 @@ def check_temperature_limits():
         latest_measurement = get_latest_measurement(mac)
 
         if latest_measurement:
-            calibrated_temperature = float(latest_measurement['temperature']) + float(data['temperatureOffset'])
+            calibrated_temperature = float(latest_measurement['temperature_calibrated'])
             high_limit = float(data['temperatureMonitoring_high']) if data['temperatureMonitoring_high'] is not None else None
             low_limit = float(data['temperatureMonitoring_low']) if data['temperatureMonitoring_low'] is not None else None
             last_alarm_state = data['lastAlarmState']
