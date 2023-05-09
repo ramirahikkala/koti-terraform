@@ -52,17 +52,17 @@ def update_alarm_state(mac, state):
         ReturnValues="UPDATED_NEW"
     )
 
-def get_latest_measurement(mac):
+def get_latest_measurement(name):
     response = data_table.query(
-        KeyConditionExpression=Key('name').eq(mac),
+        KeyConditionExpression=Key('name').eq(name),
         ScanIndexForward=False,  # Sort by datetime in descending order
         Limit=1
     )
-    if response['Items']:
+    if(response['Items']):
         item = response['Items'][0]
         dt = datetime.strptime(item['datetime'], '%Y-%m-%dT%H:%M:%S.%fZ')
-        temp = item['temperature']
-        return {'datetime': dt, 'temperature': temp}
+        temp = item['temperature_calibrated']
+        return {'datetime': dt, 'temperature_calibrated': temp}
     return None
 
 def is_daytime():
@@ -79,7 +79,7 @@ def check_temperature_limits():
     for mac, config_data in config.items():
         
         # Get the latest temperature measurement for the current name
-        latest_measurement = get_latest_measurement(mac)
+        latest_measurement = get_latest_measurement(config_data['name'])
 
         if latest_measurement:
             calibrated_temperature = float(latest_measurement['temperature_calibrated'])
