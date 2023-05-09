@@ -36,6 +36,7 @@ module "lambda" {
   rest_api_id = module.api_gateway.rest_api_id
   dynamodb_table_arn = module.dynamo_db.ruuvi_table_arn
   ruuvi_config_table_arn = module.dynamo_db.ruuvi_config_table_arn
+  timezone = "Europe/Helsinki"
 }
 
 module "S3_bucket" {
@@ -63,6 +64,7 @@ module "lambda_telegram_bot" {
   dynamodb_table_arn = module.dynamo_db.ruuvi_table_arn
   ruuvi_config_table_arn = module.dynamo_db.ruuvi_config_table_arn
   ruuvi_subscribers_table_arn = module.dynamo_db.ruuvi_subscribers_table_arn
+  timezone = "Europe/Helsinki"
 }
 
 module "api_gateway_telegram_bot" {

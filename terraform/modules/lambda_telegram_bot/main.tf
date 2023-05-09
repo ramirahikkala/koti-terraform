@@ -14,7 +14,8 @@ resource "aws_lambda_function" "telegram_bot" {
 
   environment {
     variables = {
-      TELEGRAM_TOKEN = var.telegram_token
+      TELEGRAM_TOKEN = var.telegram_token,
+      TZ = var.timezone
     }
   }
 }
@@ -96,10 +97,10 @@ resource "aws_lambda_function" "temperature_alarm" {
   source_code_hash = data.archive_file.temperature_alarm_lambda.output_base64sha256
 
   layers = [aws_lambda_layer_version.requests_layer.arn]
-
   environment {
     variables = {
-      TELEGRAM_TOKEN = var.telegram_token
+      TELEGRAM_TOKEN = var.telegram_token,
+      TZ = var.timezone
     }
   }
 }

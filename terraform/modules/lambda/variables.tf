@@ -12,3 +12,8 @@ variable "ruuvi_config_table_arn" {
   description = "The ARN of the DynamoDB table to grant access to."
   type        = string
 }
+
+variable "timezone" {
+  description = "The timezone to use for the lambda function"
+  type        = string
+}

@@ -16,3 +16,8 @@ variable "ruuvi_subscribers_table_arn" {
   description = "The ARN of the DynamoDB table to grant access to."
   type        = string
 }
+
+variable "timezone" {
+  description = "The timezone to use for the bot"
+  type        = string
+}
