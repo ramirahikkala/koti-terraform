@@ -36,7 +36,7 @@ def get_latest_measurement(name):
         item = response['Items'][0]
         dt = datetime.strptime(item['datetime'], '%Y-%m-%dT%H:%M:%S.%fZ')
         temp = item['temperature_calibrated']
-        return {'datetime': dt, 'temperature_calibrated': temp}
+        return {'datetime': dt, 'temperature_calibrated': temp, 'datetime_str': item['datetime']}
     return None
 
 
@@ -56,11 +56,27 @@ def get_min_max_measurement(name, latest_measurement):
         ScanIndexForward=False  # Sort by datetime in descending order
     )
 
-    temperatures = [float(item['temperature_calibrated']) for item in response['Items']]
+    min_temp = float('inf')
+    min_datetime = None
+    max_temp = float('-inf')
+    max_datetime = None
+
+    for item in response['Items']:
+        temp = float(item['temperature_calibrated'])
+        if temp < min_temp:
+            min_temp = temp
+            min_datetime = item['datetime']
+        if temp > max_temp:
+            max_temp = temp
+            max_datetime = item['datetime']
+
     return {
-        'min': min(temperatures) if temperatures else None,
-        'max': max(temperatures) if temperatures else None
+        'min': min_temp if min_datetime else None,
+        'min_datetime': min_datetime,
+        'max': max_temp if max_datetime else None,
+        'max_datetime': max_datetime
     }
+
 
 
 
