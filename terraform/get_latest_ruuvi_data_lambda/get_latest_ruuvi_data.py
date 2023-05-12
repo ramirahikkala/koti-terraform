@@ -101,9 +101,13 @@ def lambda_handler(event, context):
 
         for name, data in latest_and_min_max_temps.items():
             temp_latest = data['latest']['temperature_calibrated']
+            datetime_latest = data['latest']['datetime_str']  # Get datetime_str from latest measurement
             temp_min_max = data['min_max']
             response_dict["temperatures"][name] = {
-                "latest": temp_latest,
+                "latest": {
+                    "temperature": temp_latest,
+                    "datetime_str": datetime_latest,  # Add datetime_str to the response
+                },
                 "min_max": temp_min_max
             }
 
@@ -126,4 +130,3 @@ def lambda_handler(event, context):
             "headers": {"Content-Type": "application/json"},
             "body": json.dumps({"result": "Error getting latest temperatures"})
         }
-
