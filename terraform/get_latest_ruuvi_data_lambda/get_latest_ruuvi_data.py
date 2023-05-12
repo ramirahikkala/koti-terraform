@@ -1,7 +1,7 @@
 import json
 import boto3
 from boto3.dynamodb.conditions import Key
-from datetime import datetime
+from datetime import datetime, timedelta
 import traceback
 
 dynamodb = boto3.resource('dynamodb')
@@ -26,7 +26,7 @@ def get_configuration():
     return config
 
 
-def get_latest_measurement(name, config):
+def get_latest_measurement(name):
     response = table.query(
         KeyConditionExpression=Key('name').eq(name),
         ScanIndexForward=False,  # Sort by datetime in descending order
@@ -40,35 +40,64 @@ def get_latest_measurement(name, config):
     return None
 
 
-def get_latest_temperatures():
+def get_min_max_measurement(name, latest_measurement):
+    if latest_measurement is None:
+        return {'min': None, 'max': None}
+
+    latest_time_str = latest_measurement['datetime'].strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+
+    # Calculate the time 24 hours before the latest measurement
+    start_time = latest_measurement['datetime'] - timedelta(days=1)
+    start_time_str = start_time.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+
+    # Query the measurements of the last 24 hours
+    response = table.query(
+        KeyConditionExpression=Key('name').eq(name) & Key('datetime').between(start_time_str, latest_time_str),
+        ScanIndexForward=False  # Sort by datetime in descending order
+    )
+
+    temperatures = [item['temperature_calibrated'] for item in response['Items']]
+    return {
+        'min': min(temperatures) if temperatures else None,
+        'max': max(temperatures) if temperatures else None
+    }
+
+
+def get_latest_and_min_max_temperatures():
     config = get_configuration()
-    latest_temps = {}
+    latest_and_min_max_temps = {}
     for name, data in config.items():
-        measurement = get_latest_measurement(name, config)
-        if measurement is not None:
-            latest_temps[data["name"]] = measurement
-    return latest_temps
+        latest_measurement = get_latest_measurement(name)
+        min_max_measurement = get_min_max_measurement(name, latest_measurement)
+        latest_and_min_max_temps[data["name"]] = {
+            "latest": latest_measurement,
+            "min_max": min_max_measurement
+        }
+    return latest_and_min_max_temps
 
 
 def lambda_handler(event, context):
     try:
-        latest_temps = get_latest_temperatures()
+        latest_and_min_max_temps = get_latest_and_min_max_temperatures()
         response_dict = {}
         response_dict["temperatures"] = {}
-        response_dict["temperatures"]["latest"] = {}
-        
-        for name, data in latest_temps.items():
-            temp = data['temperature_calibrated']
-            response_dict["temperatures"]["latest"][name] = temp
+
+        for name, data in latest_and_min_max_temps.items():
+            temp_latest = data['latest']['temperature_calibrated']
+            temp_min_max = data['min_max']
+            response_dict["temperatures"][name] = {
+                "latest": temp_latest,
+                "min_max": temp_min_max
+            }
 
         return {
             "statusCode": 200,
             "headers": {"Content-Type": "application/json"},
             'headers': {
-            'Access-Control-Allow-Headers': 'Content-Type',
-            'Access-Control-Allow-Origin': 'https://temperature-visualizer.vercel.app',
-            'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
-        },
+                'Access-Control-Allow-Headers': 'Content-Type',
+                'Access-Control-Allow-Origin': 'https://temperature-visualizer.vercel.app',
+                'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
+            },
             "body": json.dumps(response_dict)
         }
     except Exception as e:
@@ -80,3 +109,4 @@ def lambda_handler(event, context):
             "headers": {"Content-Type": "application/json"},
             "body": json.dumps({"result": "Error getting latest temperatures"})
         }
+
