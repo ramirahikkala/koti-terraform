@@ -56,11 +56,12 @@ def get_min_max_measurement(name, latest_measurement):
         ScanIndexForward=False  # Sort by datetime in descending order
     )
 
-    temperatures = [item['temperature_calibrated'] for item in response['Items']]
+    temperatures = [float(item['temperature_calibrated']) for item in response['Items']]
     return {
         'min': min(temperatures) if temperatures else None,
         'max': max(temperatures) if temperatures else None
     }
+
 
 
 def get_latest_and_min_max_temperatures():
