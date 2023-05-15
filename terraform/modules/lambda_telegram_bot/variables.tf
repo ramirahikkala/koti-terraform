@@ -21,3 +21,12 @@ variable "timezone" {
   description = "The timezone to use for the bot"
   type        = string
 }
+
+variable "shelly_auth" {
+  description = "The Shelly auth token"
+  type        = string
+}
+variable "shelly_url" {
+  description = "The Shelly URL"
+  type        = string
+}

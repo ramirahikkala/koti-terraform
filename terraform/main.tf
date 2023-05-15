@@ -10,6 +10,10 @@ data "aws_secretsmanager_secret_version" "telegram_bot_secrets" {
   secret_id = "koti/telegram_bot_secrets"
 }
 
+data "aws_secretsmanager_secret_version" "shelly_secrets" {
+  secret_id = "prod/shelly"
+}
+
 locals {
   db_creds = jsondecode(
     data.aws_secretsmanager_secret_version.creds.secret_string
@@ -20,6 +24,9 @@ locals {
   }
   telegram_bot_secrets = jsondecode(
     data.aws_secretsmanager_secret_version.telegram_bot_secrets.secret_string
+  )
+  shelly_secrets = jsondecode(
+    data.aws_secretsmanager_secret_version.shelly_secrets.secret_string
   )
 }
 
@@ -64,6 +71,8 @@ module "lambda_telegram_bot" {
   dynamodb_table_arn = module.dynamo_db.ruuvi_table_arn
   ruuvi_config_table_arn = module.dynamo_db.ruuvi_config_table_arn
   ruuvi_subscribers_table_arn = module.dynamo_db.ruuvi_subscribers_table_arn
+  shelly_auth = local.shelly_secrets.authorization
+  shelly_url = local.shelly_secrets.url
   timezone = "Europe/Helsinki"
 }
 

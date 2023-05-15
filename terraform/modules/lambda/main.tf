@@ -32,6 +32,11 @@ resource "aws_lambda_function" "insert_ruuvi_data_lambda" {
 
   filename         = data.archive_file.insert_ruuvi_data_lambda.output_path
   source_code_hash = data.archive_file.insert_ruuvi_data_lambda.output_base64sha256
+  environment {
+    variables = {
+      TZ = var.timezone
+    }
+  }
 }
 
 data "archive_file" "insert_ruuvi_data_lambda" {

@@ -100,7 +100,9 @@ resource "aws_lambda_function" "temperature_alarm" {
   environment {
     variables = {
       TELEGRAM_TOKEN = var.telegram_token,
-      TZ = var.timezone
+      TZ = var.timezone,
+      SHELLY_URL = var.shelly_url,
+      SHELLY_AUTH = var.shelly_auth
     }
   }
 }

@@ -9,6 +9,8 @@ import traceback
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
 TELEGRAM_API_URL = f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage'
 TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID')
+SHELLY_URL = os.environ.get('SHELLY_URL')
+SHELLY_AUTH = os.environ.get('SHELLY_AUTH')
 SUBSCRIPTION_TABLE_NAME = 'ruuvi_subscribers'
 
 dynamodb = boto3.resource('dynamodb')
@@ -28,16 +30,36 @@ def get_configuration():
     config = {}
     for item in data:
         mac = item['mac']
+        
+        if 'alarms' not in item:
+            item['alarms'] = {}
+        
+        if 'deviceActions' not in item:
+            item['deviceActions'] = []
+
         config[mac] = {
             'name': item['name'],
             'temperatureOffset': item.get('temperatureOffset', 0),
-            'temperatureMonitoring_high': item.get('temperatureMonitoring_high', None),
-            'temperatureMonitoring_low': item.get('temperatureMonitoring_low', None),
-            'temperatureMonitoring_critical_low': item.get('temperatureMonitoring_critical_low', None),
-            'temperatureMonitoring_critical_high': item.get('temperatureMonitoring_critical_high', None),
-            'lastAlarmState': item.get('lastAlarmState', None),
+            'lastAlarmState': item.get('lastAlarmState', True),
+            'alarms': {
+                'critical_low': item['alarms'].get('critical_low', None),
+                'critical_high': item['alarms'].get('critical_high', None),
+                'high': item['alarms'].get('high', None),
+                'low': item['alarms'].get('low', None),
+            },
+            'deviceActions': [
+                {
+                    'on_low': deviceAction.get('on_low', None),
+                    'off_low': deviceAction.get('off_low', None),
+                    'on_high': deviceAction.get('on_high', None),
+                    'off_high': deviceAction.get('off_high', None),
+                    'device_id': deviceAction.get('device_id', None)
+                }
+                for deviceAction in item.get('deviceActions', [])
+            ]
         }
     return config
+
 
 
 def update_alarm_state(mac, state):
@@ -69,6 +91,11 @@ def is_daytime():
     now = datetime.now()
     return now.hour >= 8 and now.hour <= 22
 
+def control_shelly_device(device_id, action):
+    print(f"Controlling device {device_id} with action {action}")
+    print(f"URL: {SHELLY_URL}/relay/{device_id}?turn={action}")
+
+
 def check_temperature_limits():
     
     config = get_configuration()
@@ -83,10 +110,10 @@ def check_temperature_limits():
 
         if latest_measurement:
             calibrated_temperature = float(latest_measurement['temperature_calibrated'])
-            high_limit = float(config_data['temperatureMonitoring_high']) if config_data['temperatureMonitoring_high'] is not None else None
-            low_limit = float(config_data['temperatureMonitoring_low']) if config_data['temperatureMonitoring_low'] is not None else None
-            critical_low_limit = float(config_data['temperatureMonitoring_critical_low']) if config_data['temperatureMonitoring_critical_low'] is not None else None
-            critical_high_limit = float(config_data['temperatureMonitoring_critical_high']) if config_data['temperatureMonitoring_critical_high'] is not None else None
+            high_limit = float(config_data['alarms']['high']) if config_data['alarms']['high'] is not None else None
+            low_limit = float(config_data['alarms']['low']) if config_data['alarms']['low'] is not None else None
+            critical_low_limit = float(config_data['alarms']['critical_low']) if config_data['alarms']['critical_low'] is not None else None
+            critical_high_limit = float(config_data['alarms']['critical_high']) if config_data['alarms']['critical_high'] is not None else None
             last_alarm_state = config_data['lastAlarmState']
 
             alarm_triggered = False
@@ -123,6 +150,22 @@ def check_temperature_limits():
             if alarm_triggered:
                 for chat_id in subscribers:
                     send_telegram_message(chat_id, message)
+            
+            for deviceAction in config_data['deviceActions']:
+                on_low = float(deviceAction['on_low']) if deviceAction['on_low'] is not None else None
+                off_low = float(deviceAction['off_low']) if deviceAction['off_low'] is not None else None
+                on_high = float(deviceAction['on_high']) if deviceAction['on_high'] is not None else None
+                off_high = float(deviceAction['off_high']) if deviceAction['off_high'] is not None else None
+                device_id = deviceAction['device_id']
+
+                if on_low is not None and calibrated_temperature < on_low:
+                    control_shelly_device(device_id, 'on')
+                if off_low is not None and calibrated_temperature > off_low:
+                    control_shelly_device(device_id, 'off')
+                if on_high is not None and calibrated_temperature > on_high:
+                    control_shelly_device(device_id, 'on')
+                if off_high is not None and calibrated_temperature < off_high:
+                    control_shelly_device(device_id, 'off')
 
 def send_telegram_message(chat_id, text):
     payload = {
