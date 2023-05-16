@@ -1,4 +1,5 @@
-lambda_layer
+terraform/src/lambda_layer/*
+!lambda_layer/place_holder_file
 *.zip
 
 

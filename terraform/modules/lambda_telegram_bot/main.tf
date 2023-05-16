@@ -76,12 +76,13 @@ resource "aws_lambda_layer_version" "requests_layer" {
 }
 
 resource "null_resource" "install_requests" {
-  provisioner "local-exec" {
-    command = "pip install -r src/requirements.txt -t src/lambda_layer/python"
+  triggers = {
+    src_hash = "${data.archive_file.request_layer_zip.output_sha}"
+    requirements = "${filemd5("src/requirements.txt")}"
   }
 
-  triggers = {
-    requirements = filesha256("src/requirements.txt")
+  provisioner "local-exec" {
+    command = "pip install -r src/requirements.txt -t src/lambda_layer/python"
   }
 }
 
