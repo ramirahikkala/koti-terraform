@@ -85,6 +85,8 @@ def get_latest_and_min_max_temperatures():
     latest_and_min_max_temps = {}
     for name, data in config.items():
         latest_measurement = get_latest_measurement(name)
+        if latest_measurement is None:
+            continue
         min_max_measurement = get_min_max_measurement(name, latest_measurement)
         latest_and_min_max_temps[data["name"]] = {
             "latest": latest_measurement,
@@ -99,7 +101,7 @@ def lambda_handler(event, context):
         response_dict = {}
         response_dict["temperatures"] = {}
 
-        for name, data in latest_and_min_max_temps.items():
+        for name, data in latest_and_min_max_temps.items():            
             temp_latest = data['latest']['temperature_calibrated']
             datetime_latest = data['latest']['datetime_str']  # Get datetime_str from latest measurement
             temp_min_max = data['min_max']
