@@ -77,12 +77,14 @@ resource "aws_lambda_layer_version" "requests_layer" {
 
 resource "null_resource" "install_requests" {
   provisioner "local-exec" {
-    command = "pip install requests -t lambda_layer/python"
+    command = "pip install -r src/requirements.txt -t src/lambda_layer/python"
   }
+
   triggers = {
-    always_run = "${timestamp()}"
+    requirements = filesha256("src/requirements.txt")
   }
 }
+
 
 resource "aws_lambda_function" "temperature_alarm" {
   function_name    = "temperature_alarm"
