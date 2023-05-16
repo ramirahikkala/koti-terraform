@@ -59,14 +59,14 @@ data "aws_iam_policy_document" "lambda_permissions" {
 
 data "archive_file" "telegram_bot_lambda" {
   type        = "zip"
-  source_dir = "telegram_bot_lambda/"
-  output_path = "lambda_function.zip"
+  source_dir="src/telegram_bot_lambda/"
+  output_path = "deployment_zips/lambda_function.zip"
 }
 
 data "archive_file" "request_layer_zip" {
   type        = "zip"
-  source_dir = "lambda_layer/"
-  output_path = "layer.zip"
+  source_dir="src/lambda_layer/"
+  output_path = "deployment_zips/layer.zip"
 }
 
 resource "aws_lambda_layer_version" "requests_layer" {
@@ -109,8 +109,8 @@ resource "aws_lambda_function" "temperature_alarm" {
 
 data "archive_file" "temperature_alarm_lambda" {
   type        = "zip"
-  source_dir = "temperature_alarm_lambda/"
-  output_path = "temperature_alarm_lambda_function.zip"
+  source_dir="src/temperature_alarm_lambda/"
+  output_path = "deployment_zips/temperature_alarm_lambda_function.zip"
 }
 
 

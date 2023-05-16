@@ -41,8 +41,8 @@ resource "aws_lambda_function" "insert_ruuvi_data_lambda" {
 
 data "archive_file" "insert_ruuvi_data_lambda" {
   type        = "zip"
-  source_file = "insert_ruuvi_data_lambda/insert_ruuvi_data.py"
-  output_path = "insert_ruuvi_data_lambda/insert_ruuvi_data.zip"
+  source_file = "src/insert_ruuvi_data_lambda/insert_ruuvi_data.py"
+  output_path = "deployment_zips/insert_ruuvi_data_lambda/insert_ruuvi_data.zip"
 }
 
 resource "aws_lambda_permission" "insert_ruuvi_data_lambda_permission" {
@@ -86,8 +86,8 @@ resource "aws_lambda_function" "get_latest_ruuvi_data_lambda" {
 
 data "archive_file" "get_latest_ruuvi_data_lambda" {
   type        = "zip"
-  source_file = "get_latest_ruuvi_data_lambda/get_latest_ruuvi_data.py"
-  output_path = "get_latest_ruuvi_data_lambda/get_latest_ruuvi_data.zip"
+  source_file = "src/get_latest_ruuvi_data_lambda/get_latest_ruuvi_data.py"
+  output_path = "deployment_zips/get_latest_ruuvi_data_lambda/get_latest_ruuvi_data.zip"
 }
 
 resource "aws_lambda_permission" "get_latest_ruuvi_data_lambda_permission" {
