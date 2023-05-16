@@ -105,6 +105,7 @@ data "aws_iam_policy_document" "dynamodb_get_policy" {
       "dynamodb:GetItem",
       "dynamodb:Query",
       "dynamodb:Scan",
+      "dynamodb:PutItem",
     ]
     resources = [
       var.dynamodb_table_arn,

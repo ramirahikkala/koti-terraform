@@ -16,11 +16,36 @@ def get_configuration():
         config[mac] = {
             'name': item['name'],
             'temperatureOffset': item.get('temperatureOffset', 0),
-            'temperatureMonitoring_high': item.get('temperatureMonitoring_high', None),
-            'temperatureMonitoring_low': item.get('temperatureMonitoring_low', None),
-            'lastAlarmState': item.get('lastAlarmState', None),
         }
     return config
+
+def get_configuration_for_new_sensor(mac):
+    return {
+        'mac': mac,
+        'name': 'name_for_' + mac,
+        'type': 'ruuvitag',
+        'temperatureOffset': '0.0',
+        'alarms': {
+            'critical_high': 35,
+            'high': 30,
+            'critical_low': 3,
+            'low': 5,
+        },
+        'lastAlarmState': None,
+        'deviceActions': [
+            {
+                'device_id': 'cooling_device_id',
+                'off_high': 35,
+                'on_high': 36
+            },
+            {
+                'device_id': 'heating_device_id',
+                'off_low': 11,
+                'on_low': 10
+            }
+        ]
+    }
+
 
 
 def lambda_handler(event, context):
@@ -28,10 +53,16 @@ def lambda_handler(event, context):
         config = get_configuration()
         body = json.loads(event['body'])
         mac = body['name']
+        if mac not in config:
+            new_config = get_configuration_for_new_sensor(mac)
+            config[mac] = new_config
+            response = config_table.put_item(
+                Item=new_config
+            )
         config_for_mac = config[mac]
-        name = config_for_mac['name'] 
+        name = config_for_mac['name']
         temperature = body['temperature']
-        temperature_calibrated =format(float(body['temperature']) + float(config_for_mac['temperatureOffset']), '.2f')
+        temperature_calibrated = format(float(body['temperature']) + float(config_for_mac['temperatureOffset']), '.2f')
         humidity = body['humidity']
         pressure = body['pressure']
 
@@ -63,3 +94,4 @@ def lambda_handler(event, context):
             'statusCode': 400,
             'body': json.dumps({'message': 'Error inserting data'})
         }
+
