@@ -23,10 +23,20 @@ def handle_data(found_data):
 
         payload = {
             'name': mac,
-            'temperature': str(data['temperature']),
+            'temperature': str(data.get('temperature', 0)),
             'temperature_calibrated': str(temperature_calibrated),
-            'humidity': str(data['humidity']),
-            'pressure': str(data['pressure'])
+            'humidity': str(data.get('humidity', 0)),
+            'pressure': str(data.get('pressure', 0)),
+            'battery': str(data.get('battery', 0)),
+            'data_format': str(data.get('data_format', 0)),
+            'measurement_sequence_number': str(data.get('measurement_sequence_number', 0)),
+            'acceleration_z': str(data.get('acceleration_z', 0)),
+            'acceleration': str(data.get('acceleration', 0)),
+            'acceleration_y': str(data.get('acceleration_y', 0)),
+            'acceleration_x': str(data.get('acceleration_x', 0)),
+            'tx_power': str(data.get('tx_power', 0)),
+            'movement_counter': str(data.get('movement_counter', 0)),
+            'rssi': str(data.get('rssi', 0))
         }
         print("Sending: " + str(payload))
 
@@ -35,6 +45,7 @@ def handle_data(found_data):
 
         # Update the last sent timestamp for the current MAC address
         last_sent[mac] = now
+
 
 def send_to_api(payload):
     try:

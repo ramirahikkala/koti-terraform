@@ -52,7 +52,7 @@ def lambda_handler(event, context):
     try:
         config = get_configuration()
         body = json.loads(event['body'])
-        mac = body['name']
+        mac = body.get('name', '')
         if mac not in config:
             new_config = get_configuration_for_new_sensor(mac)
             config[mac] = new_config
@@ -61,10 +61,20 @@ def lambda_handler(event, context):
             )
         config_for_mac = config[mac]
         name = config_for_mac['name']
-        temperature = body['temperature']
-        temperature_calibrated = format(float(body['temperature']) + float(config_for_mac['temperatureOffset']), '.2f')
-        humidity = body['humidity']
-        pressure = body['pressure']
+        temperature = body.get('temperature', 0)
+        temperature_calibrated = format(float(body.get('temperature', 0)) + float(config_for_mac['temperatureOffset']), '.2f')
+        humidity = body.get('humidity', 0)
+        pressure = body.get('pressure', 0)
+        battery = body.get('battery', 0)
+        data_format = body.get('data_format', 0)
+        measurement_sequence_number = body.get('measurement_sequence_number', 0)
+        acceleration_z = body.get('acceleration_z', 0)
+        acceleration = body.get('acceleration', 0)
+        acceleration_y = body.get('acceleration_y', 0)
+        acceleration_x = body.get('acceleration_x', 0)
+        tx_power = body.get('tx_power', 0)
+        movement_counter = body.get('movement_counter', 0)
+        rssi = body.get('rssi', 0)
 
         # Use the current datetime as the sort key.
         now = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
@@ -78,7 +88,17 @@ def lambda_handler(event, context):
                 'temperature': temperature,
                 'temperature_calibrated': temperature_calibrated,
                 'humidity': humidity,
-                'pressure': pressure
+                'pressure': pressure,
+                'battery': battery,
+                'data_format': data_format,
+                'measurement_sequence_number': measurement_sequence_number,
+                'acceleration_z': acceleration_z,
+                'acceleration': acceleration,
+                'acceleration_y': acceleration_y,
+                'acceleration_x': acceleration_x,
+                'tx_power': tx_power,
+                'movement_counter': movement_counter,
+                'rssi': rssi
             }
         )
 
@@ -94,4 +114,6 @@ def lambda_handler(event, context):
             'statusCode': 400,
             'body': json.dumps({'message': 'Error inserting data'})
         }
+
+
 
