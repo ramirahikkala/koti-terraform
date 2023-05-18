@@ -40,3 +40,44 @@ resource "aws_dynamodb_table" "subscribers" {
     type = "N"
   }
 }
+
+resource "aws_dynamodb_table" "measurement_stats" {
+  name           = "measurement_stats"
+  billing_mode   = "PAY_PER_REQUEST"
+  hash_key       = "measurement_name"
+  range_key      = "statistics_type"
+
+  attribute {
+    name = "measurement_name"
+    type = "S"
+  }
+
+  attribute {
+    name = "statistics_type"
+    type = "S"
+  }
+
+  attribute {
+    name = "year"
+    type = "N"
+  }
+
+  attribute {
+    name = "month"
+    type = "N"
+  }
+
+  global_secondary_index {
+    name               = "year_month_index"
+    hash_key           = "year"
+    range_key          = "month"
+    projection_type    = "ALL"
+  }
+
+  lifecycle {
+    ignore_changes = [
+      tags_all
+    ]
+  }
+}
+

@@ -12,3 +12,8 @@ output "ruuvi_subscribers_table_arn" {
   description = "The ARN of the DynamoDB table for Ruuvi data."
   value       = aws_dynamodb_table.subscribers.arn
 }
+
+output "ruuvi_measurement_stats_table_arn" {
+  description = "The ARN of the DynamoDB table for Ruuvi data."
+  value       = aws_dynamodb_table.measurement_stats.arn
+}

@@ -8,11 +8,18 @@ import decimal
 
 dynamodb = boto3.resource('dynamodb')
 table = dynamodb.Table('ruuvi')
+stats_table = dynamodb.Table('measurement_stats')
+
 
 class CustomJSONEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, datetime.datetime):
-            return obj.isoformat()
+            if obj.tzinfo is None:
+                # The datetime object is naive. Assume UTC.
+                return obj.replace(tzinfo=datetime.timezone.utc).isoformat().replace('+00:00', 'Z')
+            else:
+                # The datetime object is timezone-aware.
+                return obj.astimezone(datetime.timezone.utc).isoformat().replace('+00:00', 'Z')
         elif isinstance(obj, decimal.Decimal):
             return float(obj)
         return super(CustomJSONEncoder, self).default(obj)
@@ -40,7 +47,8 @@ def get_latest_measurement(name):
     response = table.query(
         KeyConditionExpression=Key('name').eq(name),
         ScanIndexForward=False,  # Sort by datetime in descending order
-        Limit=1
+        Limit=1,
+        
     )
     if(response['Items']):
         item = response['Items'][0]
@@ -51,40 +59,20 @@ def get_latest_measurement(name):
     return None
 
 def get_min_max_measurement(name, latest_measurement):
-    if latest_measurement is None:
-        return {'min': None, 'max': None}
-
-    latest_time_str = latest_measurement['datetime'].strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-
-    # Calculate the time 24 hours before the latest measurement
-    start_time = latest_measurement['datetime'] - timedelta(days=1)
-    start_time_str = start_time.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-
-    # Query the measurements of the last 24 hours
-    response = table.query(
-        KeyConditionExpression=Key('name').eq(name) & Key('datetime').between(start_time_str, latest_time_str),
-        ScanIndexForward=False  # Sort by datetime in descending order
+    response = stats_table.query(
+        KeyConditionExpression=Key('measurement_name').eq(name)
+        & Key('statistics_type').eq('past24h'),
+        Limit=1,
     )
 
-    min_temp = float('inf')
-    min_datetime = None
-    max_temp = float('-inf')
-    max_datetime = None
+    stats_item = response['Items'][0]
 
-    for item in response['Items']:
-        temp = float(item['temperature_calibrated'])
-        if temp < min_temp:
-            min_temp = temp
-            min_datetime = item['datetime']
-        if temp > max_temp:
-            max_temp = temp
-            max_datetime = item['datetime']
 
     return {
-        'min': min_temp if min_datetime else None,
-        'min_datetime': min_datetime,
-        'max': max_temp if max_datetime else None,
-        'max_datetime': max_datetime
+        'min': stats_item['temperature']['min']['value'] ,
+        'min_datetime': stats_item['temperature']['min']['datetime'],
+        'max': stats_item['temperature']['max']['value'],
+        'max_datetime': stats_item['temperature']['max']['datetime']
     }
 
 def get_latest_and_min_max_temperatures():

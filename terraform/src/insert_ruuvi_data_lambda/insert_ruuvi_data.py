@@ -1,11 +1,15 @@
 import json
 import boto3
 from datetime import datetime
+from boto3.dynamodb.conditions import Key
+
 import traceback
 
 dynamodb = boto3.resource('dynamodb')
 table = dynamodb.Table('ruuvi')
 config_table = dynamodb.Table('ruuvi_configuration')
+stats_table = dynamodb.Table('measurement_stats')
+
 
 def get_configuration():
     response = config_table.scan()
@@ -45,6 +49,45 @@ def get_configuration_for_new_sensor(mac):
             }
         ]
     }
+
+def set_temperature_stats(name, temperature, measurement_time):
+
+    # Get the current daily min/max values for this sensor.
+    response = stats_table.query(
+        KeyConditionExpression=Key('measurement_name').eq(name)
+        & Key('statistics_type').eq('alltime')        
+    )        
+    
+    # If there's no item for the current day, create a new one with the current measurement as the min and max.
+    if 'Items' not in response:
+        stats_item = {
+            'measurement_name': name,
+            'statistics_type': 'alltime',
+            'temperature': {                
+                'min': { 'value': temperature, 'datetime': measurement_time },
+                'max': { 'value': temperature, 'datetime': measurement_time },
+                'sum': temperature,
+                'count': 1,
+            },
+            # You can do the same for other measurements here.
+        }
+    else:
+        # Otherwise, update the min/max values with the current measurement.
+        stats_item = response['Items'][0]
+        
+        if stats_item['temperature']['min']['value'] > temperature:
+            stats_item['temperature']['min'] = { 'value': temperature, 'datetime': measurement_time }
+            
+        if stats_item['temperature']['max']['value'] < temperature:
+            stats_item['temperature']['max'] = { 'value': temperature, 'datetime': measurement_time }
+            
+        stats_item['temperature']['sum'] += temperature
+        stats_item['temperature']['count'] += 1
+        # You can do the same for other measurements here.
+
+
+    # Store the updated statistics data in DynamoDB.
+    response = stats_table.put_item(Item=stats_item)
 
 
 
@@ -101,6 +144,7 @@ def lambda_handler(event, context):
                 'rssi': rssi
             }
         )
+        set_temperature_stats(name, temperature, now)
 
         return {
             'statusCode': 200,

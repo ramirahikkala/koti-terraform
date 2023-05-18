@@ -43,6 +43,7 @@ module "lambda" {
   rest_api_id = module.api_gateway.rest_api_id
   dynamodb_table_arn = module.dynamo_db.ruuvi_table_arn
   ruuvi_config_table_arn = module.dynamo_db.ruuvi_config_table_arn
+  ruuvi_measurement_stats_table_arn = module.dynamo_db.ruuvi_measurement_stats_table_arn
   timezone = "Europe/Helsinki"
 }
 
