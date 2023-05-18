@@ -86,6 +86,7 @@ resource "aws_lambda_function" "get_latest_ruuvi_data_lambda" {
 
   filename         = data.archive_file.get_latest_ruuvi_data_lambda.output_path
   source_code_hash = data.archive_file.get_latest_ruuvi_data_lambda.output_base64sha256
+  timeout       = 15
 }
 
 data "archive_file" "get_latest_ruuvi_data_lambda" {

@@ -52,7 +52,7 @@ resource "aws_iam_role_policy_attachment" "lambda_basic_execution" {
 data "aws_iam_policy_document" "lambda_permissions" {
   statement {
     actions   = ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:Scan", "dynamodb:PutItem", "dynamodb:DeleteItem", "dynamodb:UpdateItem"]
-    resources = [var.dynamodb_table_arn, var.ruuvi_config_table_arn, var.ruuvi_subscribers_table_arn]
+    resources = [var.dynamodb_table_arn, var.ruuvi_config_table_arn, var.ruuvi_subscribers_table_arn, var.ruuvi_measurement_stats_table_arn]
   }
 }
 
@@ -91,7 +91,7 @@ resource "aws_lambda_function" "temperature_alarm" {
   function_name    = "temperature_alarm"
   handler          = "temperature_alarm_lambda.lambda_handler"
   runtime          = "python3.9"
-  timeout          = 10
+  timeout          = 20
   memory_size      = 128
 
   role             = aws_iam_role.lambda_execution_role.arn

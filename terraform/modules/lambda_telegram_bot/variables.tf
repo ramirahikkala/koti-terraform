@@ -30,3 +30,8 @@ variable "shelly_url" {
   description = "The Shelly URL"
   type        = string
 }
+
+variable "ruuvi_measurement_stats_table_arn" {
+  description = "The ARN of the DynamoDB table to grant access to."
+  type        = string
+}

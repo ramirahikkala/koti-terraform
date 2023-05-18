@@ -16,7 +16,41 @@ SUBSCRIPTION_TABLE_NAME = 'ruuvi_subscribers'
 dynamodb = boto3.resource('dynamodb')
 config_table = dynamodb.Table('ruuvi_configuration')
 data_table = dynamodb.Table('ruuvi')
+stats_table = dynamodb.Table('measurement_stats')
 subscriber_table = dynamodb.Table(SUBSCRIPTION_TABLE_NAME)
+
+def set_last24h_min_max():
+    config = get_configuration()
+    for mac, config_data in config.items():
+        name = config_data['name']
+        response = data_table.query(
+        KeyConditionExpression=Key('name').eq(name) & Key('datetime').between(str(datetime.datetime.now() - timedelta(days=1)), str(datetime.datetime.now())),
+        )
+
+        items = response['Items']
+        # Sort by temperature
+        items.sort(key=lambda x: x['temperature'])
+        # Get min and max
+        min = items[0]
+        max = items[-1]
+        # Print
+        print("Min: " + str(min['temperature']) + " at " + str(min['datetime']))
+        print("Max: " + str(max['temperature']) + " at " + str(max['datetime']))
+
+
+
+        stats_item = {
+            'measurement_name': name,
+            'statistics_type': 'past24h',
+            'temperature': {                
+                'min': { 'value': min['temperature'], 'datetime': min['datetime'] },
+                'max': { 'value': max['temperature'], 'datetime': max['datetime'] },
+
+            },
+        }
+
+        response = stats_table.put_item(Item=stats_item)
+        
 
 def get_subscribers():
     response = subscriber_table.scan()
@@ -166,6 +200,8 @@ def check_temperature_limits():
                     control_shelly_device(device_id, 'on')
                 if off_high is not None and calibrated_temperature < off_high:
                     control_shelly_device(device_id, 'off')
+    set_last24h_min_max()
+
 
 def send_telegram_message(chat_id, text):
     payload = {

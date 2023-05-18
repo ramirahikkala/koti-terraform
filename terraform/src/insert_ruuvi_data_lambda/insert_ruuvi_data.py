@@ -59,7 +59,7 @@ def set_temperature_stats(name, temperature, measurement_time):
     )        
     
     # If there's no item for the current day, create a new one with the current measurement as the min and max.
-    if 'Items' not in response:
+    if 'Items' not in response or len(response['Items']) == 0:
         stats_item = {
             'measurement_name': name,
             'statistics_type': 'alltime',
