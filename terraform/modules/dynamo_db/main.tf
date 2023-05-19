@@ -57,23 +57,6 @@ resource "aws_dynamodb_table" "measurement_stats" {
     type = "S"
   }
 
-  attribute {
-    name = "year"
-    type = "N"
-  }
-
-  attribute {
-    name = "month"
-    type = "N"
-  }
-
-  global_secondary_index {
-    name               = "year_month_index"
-    hash_key           = "year"
-    range_key          = "month"
-    projection_type    = "ALL"
-  }
-
   lifecycle {
     ignore_changes = [
       tags_all
