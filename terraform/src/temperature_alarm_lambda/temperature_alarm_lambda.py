@@ -2,7 +2,7 @@ import json
 import requests
 import boto3
 from boto3.dynamodb.conditions import Key
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import traceback
 
@@ -24,27 +24,22 @@ def set_last24h_min_max():
     for mac, config_data in config.items():
         name = config_data['name']
         response = data_table.query(
-        KeyConditionExpression=Key('name').eq(name) & Key('datetime').between(str(datetime.datetime.now() - timedelta(days=1)), str(datetime.datetime.now())),
+        KeyConditionExpression=Key('name').eq(name) & Key('datetime').between(str(datetime.datetime.utcnow() - timedelta(days=1)), str(datetime.datetime.utcnow())),
         )
 
         items = response['Items']
         # Sort by temperature
-        items.sort(key=lambda x: x['temperature'])
+        items.sort(key=lambda x: float(x['temperature_calibrated']))
         # Get min and max
         min = items[0]
         max = items[-1]
-        # Print
-        print("Min: " + str(min['temperature']) + " at " + str(min['datetime']))
-        print("Max: " + str(max['temperature']) + " at " + str(max['datetime']))
-
-
 
         stats_item = {
             'measurement_name': name,
             'statistics_type': 'past24h',
             'temperature': {                
-                'min': { 'value': min['temperature'], 'datetime': min['datetime'] },
-                'max': { 'value': max['temperature'], 'datetime': max['datetime'] },
+                'min': { 'value': min['temperature_calibrated'], 'datetime': min['datetime'] },
+                'max': { 'value': max['temperature_calibrated'], 'datetime': max['datetime'] },
 
             },
         }
