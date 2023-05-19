@@ -19,33 +19,31 @@ data_table = dynamodb.Table('ruuvi')
 stats_table = dynamodb.Table('measurement_stats')
 subscriber_table = dynamodb.Table(SUBSCRIPTION_TABLE_NAME)
 
-def set_last24h_min_max():
-    config = get_configuration()
-    for mac, config_data in config.items():
-        name = config_data['name']
-        response = data_table.query(
-        KeyConditionExpression=Key('name').eq(name) & Key('datetime').between(str(datetime.datetime.utcnow() - timedelta(days=1)), str(datetime.datetime.utcnow())),
-        )
+def set_last24h_min_max(name, start_time):
+    
+    response = data_table.query(
+    KeyConditionExpression=Key('name').eq(name) & Key('datetime').between(str(start_time - timedelta(days=1)), str(start_time)),
+    )
 
-        items = response['Items']
-        # Sort by temperature
-        items.sort(key=lambda x: float(x['temperature_calibrated']))
-        # Get min and max
-        min = items[0]
-        max = items[-1]
+    items = response['Items']
+    # Sort by temperature
+    items.sort(key=lambda x: float(x['temperature_calibrated']))
+    # Get min and max
+    min = items[0]
+    max = items[-1]
 
-        stats_item = {
-            'measurement_name': name,
-            'statistics_type': 'past24h',
-            'temperature': {                
-                'min': { 'value': min['temperature_calibrated'], 'datetime': min['datetime'] },
-                'max': { 'value': max['temperature_calibrated'], 'datetime': max['datetime'] },
+    stats_item = {
+        'measurement_name': name,
+        'statistics_type': 'past24h',
+        'temperature': {                
+            'min': { 'value': min['temperature_calibrated'], 'datetime': min['datetime'] },
+            'max': { 'value': max['temperature_calibrated'], 'datetime': max['datetime'] },
 
-            },
-        }
+        },
+    }
 
-        response = stats_table.put_item(Item=stats_item)
-        
+    response = stats_table.put_item(Item=stats_item)
+    
 
 def get_subscribers():
     response = subscriber_table.scan()
@@ -195,7 +193,8 @@ def check_temperature_limits():
                     control_shelly_device(device_id, 'on')
                 if off_high is not None and calibrated_temperature < off_high:
                     control_shelly_device(device_id, 'off')
-    set_last24h_min_max()
+        
+            set_last24h_min_max(config_data['name'], latest_measurement['datetime'])
 
 
 def send_telegram_message(chat_id, text):
