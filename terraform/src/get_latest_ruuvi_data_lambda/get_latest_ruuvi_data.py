@@ -7,7 +7,7 @@ import datetime
 import decimal
 
 dynamodb = boto3.resource('dynamodb')
-table = dynamodb.Table('ruuvi')
+ruuvi_data_table = dynamodb.Table('ruuvi')
 stats_table = dynamodb.Table('measurement_stats')
 
 
@@ -44,7 +44,7 @@ def get_configuration():
 
 
 def get_latest_measurement(name):
-    response = table.query(
+    response = ruuvi_data_table.query(
         KeyConditionExpression=Key('name').eq(name),
         ScanIndexForward=False,  # Sort by datetime in descending order
         Limit=1,
@@ -87,10 +87,38 @@ def get_latest_and_min_max_temperatures():
         }
     return latest_and_min_max_temps
 
+def get_specific_and_min_max_temperatures(measurement_point, time_range):
+    response = ruuvi_data_table.query(
+        KeyConditionExpression=Key('name').eq(measurement_point) & Key('datetime').gte(str(datetime.datetime.utcnow() - timedelta(hours=time_range))),
+        )
+    return response['Items']
+
+def get_return_data(body):
+        return {
+        "statusCode": 200,
+        "headers": {
+            "Content-Type": "application/json",
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Origin': 'https://temperature-visualizer.vercel.app',
+            'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
+        },
+        "body": json.dumps(body, cls=CustomJSONEncoder)
+    }
+
 
 def lambda_handler(event, context):
     try:
+        if 'queryStringParameters' in event and event['queryStringParameters'] is not None:
+            query_params = event['queryStringParameters']
+            if 'measurementPoint' in query_params and 'timeRange' in query_params:
+                measurement_point = query_params['measurementPoint']
+                time_range = int(query_params['timeRange'])  # timeRange is an integer representing hours
+                response_dict = get_specific_and_min_max_temperatures(measurement_point, time_range)
+                return get_return_data(response_dict)
+        
+        # if we reach this point, either there were no query parameters or they were incomplete
         latest_and_min_max_temps = get_latest_and_min_max_temperatures()
+
         response_dict = {}
         response_dict["temperatures"] = {}
 
@@ -101,17 +129,11 @@ def lambda_handler(event, context):
                 "latest": temp_latest,
                 "min_max": temp_min_max
             }
+        
+        response_dict['config'] = get_configuration()
 
-        return {
-            "statusCode": 200,
-            "headers": {"Content-Type": "application/json"},
-            'headers': {
-                'Access-Control-Allow-Headers': 'Content-Type',
-                'Access-Control-Allow-Origin': 'https://temperature-visualizer.vercel.app',
-                'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
-            },
-            "body": json.dumps(response_dict, cls=CustomJSONEncoder)
-        }
+        return get_return_data(response_dict)
+
     except Exception as e:
         print("Exception occurred:")
         print(str(e))
@@ -121,3 +143,4 @@ def lambda_handler(event, context):
             "headers": {"Content-Type": "application/json"},
             "body": json.dumps({"result": "Error getting latest temperatures"})
         }
+
