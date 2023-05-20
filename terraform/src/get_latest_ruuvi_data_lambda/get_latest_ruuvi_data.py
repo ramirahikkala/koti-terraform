@@ -93,13 +93,13 @@ def get_specific_and_min_max_temperatures(measurement_point, time_range):
         )
     return response['Items']
 
-def get_return_data(body):
+def get_return_data(body, status_code=200):
         return {
         "statusCode": 200,
         "headers": {
             "Content-Type": "application/json",
             'Access-Control-Allow-Headers': 'Content-Type',
-            'Access-Control-Allow-Origin': 'https://temperature-visualizer.vercel.app',
+            'Access-Control-Allow-Origin': '*', #'https://temperature-visualizer.vercel.app',
             'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
         },
         "body": json.dumps(body, cls=CustomJSONEncoder)
@@ -138,9 +138,6 @@ def lambda_handler(event, context):
         print("Exception occurred:")
         print(str(e))
         print(traceback.format_exc())  # Print the complete traceback information
-        return {
-            "statusCode": 400,
-            "headers": {"Content-Type": "application/json"},
-            "body": json.dumps({"result": "Error getting latest temperatures"})
-        }
+        return get_return_data({"result": "Error getting latest temperatures"}, 400)
+        
 
