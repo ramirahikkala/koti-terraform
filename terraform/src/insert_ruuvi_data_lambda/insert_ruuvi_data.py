@@ -104,7 +104,7 @@ def lambda_handler(event, context):
             )
         config_for_mac = config[mac]
         name = config_for_mac['name']
-        temperature = body.get('temperature', 0)
+        temperature_raw = body.get('temperature', 0)
         temperature_calibrated = format(float(body.get('temperature', 0)) + float(config_for_mac['temperatureOffset']), '.2f')
         humidity = body.get('humidity', 0)
         pressure = body.get('pressure', 0)
@@ -128,7 +128,8 @@ def lambda_handler(event, context):
                 'name': name,
                 'mac': mac,
                 'datetime': now,
-                'temperature': temperature,
+                'temperature_raw': temperature_raw,
+                'temperature': temperature_calibrated,
                 'temperature_calibrated': temperature_calibrated,
                 'humidity': humidity,
                 'pressure': pressure,
@@ -144,7 +145,8 @@ def lambda_handler(event, context):
                 'rssi': rssi
             }
         )
-        set_temperature_stats(name, temperature, now)
+        
+        set_temperature_stats(name, temperature_calibrated, now)
 
         return {
             'statusCode': 200,
