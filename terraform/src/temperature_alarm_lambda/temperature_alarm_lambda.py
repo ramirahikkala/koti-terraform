@@ -122,7 +122,15 @@ def is_daytime():
 
 def control_shelly_device(device_id, action):
     print(f"Controlling device {device_id} with action {action}")
-    print(f"URL: {SHELLY_URL}/relay/{device_id}?turn={action}")
+    data = {
+        'channel': '0',
+        'turn': action,
+        'id': device_id,
+        'auth_key': SHELLY_AUTH
+    }
+
+    response = requests.post(f"{SHELLY_URL}/device/relay/control", data=data)
+    print(response.text)
 
 
 def check_temperature_limits():
