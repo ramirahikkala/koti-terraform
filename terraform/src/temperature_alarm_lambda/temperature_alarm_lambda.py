@@ -24,7 +24,7 @@ def set_last24h_min_max():
     for mac, config_data in config.items():
         name = config_data['name']
         response = data_table.query(
-        KeyConditionExpression=Key('name').eq(name) & Key('datetime').gte(str(datetime.utcnow() - timedelta(days=1))),
+        KeyConditionExpression=Key('name').eq(name) & Key('datetime').gte((datetime.utcnow() - timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S.%fZ')),
         )
 
         items = response['Items']
