@@ -141,6 +141,13 @@ def update_shelly_state(device_id, state):
     return response
 
 def do_action(device_id, action):
+
+    shelly_status = fetch_shelly_device_status(device_id)
+    if not shelly_status['online']:
+        print(f"Device {device_id} is offline")
+        send_telegram_message(f"Device {device_id} is offline")
+        return
+
     print(f"Controlling device {device_id} with action {action}")
     data = {
         'channel': '0',
@@ -156,6 +163,24 @@ def do_action(device_id, action):
         send_telegram_message(f"Error controlling device {device_id}: {response.status_code}")
     else:
         update_shelly_state(device_id, action)
+
+
+def fetch_shelly_device_status(device_id):
+    data = {
+        'id': device_id,
+        'auth_key': SHELLY_AUTH
+    }
+    response = requests.post(f"{SHELLY_URL}/device/status", data=data)
+    if response.status_code == 200:
+        device_info = response.json()
+        if device_info.get('isok'):
+            return device_info.get('data')
+        else:
+            print(f"Unable to fetch the status of device {device_id}")
+    else:
+        print(f"Failed to get status for device {device_id}. Status code: {response.status_code}")
+    return None
+
 
 
 def control_shelly_device(device_id, action):
@@ -185,13 +210,29 @@ def control_shelly_device(device_id, action):
         # If the device was not found in the table, just do the action (this is for new devices)
         do_action(device_id, action)
 
+def get_all_shelly_devices():
+    shelly_devices_table = dynamodb.Table('shelly_devices')
+    response = shelly_devices_table.scan()
+    shelly_devices = response['Items']
+    return shelly_devices
 
 
 def check_temperature_limits():
     
     config = get_configuration()
     
-    subscribers = get_subscribers()
+
+    # Implement this later. Should check the status somehow time to time
+    # shelly_devices = get_all_shelly_devices()
+
+    # for db_device in shelly_devices:
+
+    #     shelly_device_status = fetch_shelly_device_status(db_device['id'])
+    #     if shelly_device_status != db_device['deviceStatus']:            
+    #         print(f"Device in DynamoDB is out of sync with the actual device status. Updating DynamoDB...")
+    #         update_shelly_state(db_device['id'], shelly_device_status)
+    #         # Warn user
+    #         send_telegram_message(f"Device {db_device['id']} is out of sync with the actual device status. Updating DynamoDB...")
     
 
     for mac, config_data in config.items():
@@ -239,8 +280,7 @@ def check_temperature_limits():
                     alarm_triggered = True
 
             if alarm_triggered:
-                for chat_id in subscribers:
-                    send_telegram_message(chat_id, message)
+                send_telegram_message(message)
             
             for deviceAction in config_data['deviceActions']:
                 on_low = float(deviceAction['on_low']) if deviceAction['on_low'] is not None else None
@@ -260,20 +300,25 @@ def check_temperature_limits():
     set_last24h_min_max()
 
 
-def send_telegram_message(chat_id, text):
-    payload = {
-        "chat_id": chat_id,
-        "text": text
-    }
-    headers = {
-        "Content-Type": "application/json"
-    }
+def send_telegram_message(text):
+    
+    subscribers = get_subscribers()
+    
+    for chat_id in subscribers:
 
-    try:
-        response = requests.post(TELEGRAM_API_URL, json=payload, headers=headers)
-        response.raise_for_status()
-    except requests.exceptions.HTTPError as e:
-        print(f"An error occurred sending the message: {e}")
+        payload = {
+            "chat_id": chat_id,
+            "text": text
+        }
+        headers = {
+            "Content-Type": "application/json"
+        }
+
+        try:
+            response = requests.post(TELEGRAM_API_URL, json=payload, headers=headers)
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            print(f"An error occurred sending the message: {e}")
 
 def lambda_handler(event, context):
     print("Running handler")
