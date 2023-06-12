@@ -76,6 +76,7 @@ module "lambda_telegram_bot" {
   shelly_url = local.shelly_secrets.url
   timezone = "Europe/Helsinki"
   ruuvi_measurement_stats_table_arn = module.dynamo_db.ruuvi_measurement_stats_table_arn
+  shelly_devices_table_arn = module.dynamo_db.shelly_devices_table_arn
 }
 
 module "api_gateway_telegram_bot" {

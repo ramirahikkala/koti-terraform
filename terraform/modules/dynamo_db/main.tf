@@ -64,3 +64,20 @@ resource "aws_dynamodb_table" "measurement_stats" {
   }
 }
 
+resource "aws_dynamodb_table" "shelly_devices" {
+  name           = "shelly_devices"
+  billing_mode   = "PAY_PER_REQUEST"
+  hash_key       = "id"
+
+  attribute {
+    name = "id"
+    type = "S"
+  }
+
+  lifecycle {
+    ignore_changes = [
+      tags_all
+    ]
+  }
+}
+

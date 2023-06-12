@@ -1,12 +1,12 @@
 resource "aws_lambda_function" "telegram_bot" {
-  function_name    = "telegram_bot"
-  handler          = "lambda_function.lambda_handler"
-  runtime          = "python3.9"
-  timeout          = 10
-  memory_size      = 128
+  function_name = "telegram_bot"
+  handler       = "lambda_function.lambda_handler"
+  runtime       = "python3.9"
+  timeout       = 10
+  memory_size   = 128
 
-  role             = aws_iam_role.lambda_execution_role.arn
-  filename         = data.archive_file.telegram_bot_lambda.output_path
+  role     = aws_iam_role.lambda_execution_role.arn
+  filename = data.archive_file.telegram_bot_lambda.output_path
 
   source_code_hash = data.archive_file.telegram_bot_lambda.output_base64sha256
 
@@ -15,7 +15,7 @@ resource "aws_lambda_function" "telegram_bot" {
   environment {
     variables = {
       TELEGRAM_TOKEN = var.telegram_token,
-      TZ = var.timezone
+      TZ             = var.timezone
     }
   }
 }
@@ -52,32 +52,38 @@ resource "aws_iam_role_policy_attachment" "lambda_basic_execution" {
 data "aws_iam_policy_document" "lambda_permissions" {
   statement {
     actions   = ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:Scan", "dynamodb:PutItem", "dynamodb:DeleteItem", "dynamodb:UpdateItem"]
-    resources = [var.dynamodb_table_arn, var.ruuvi_config_table_arn, var.ruuvi_subscribers_table_arn, var.ruuvi_measurement_stats_table_arn]
+    resources = [
+      var.dynamodb_table_arn,
+      var.ruuvi_config_table_arn,
+      var.ruuvi_subscribers_table_arn,
+      var.ruuvi_measurement_stats_table_arn,
+      var.shelly_devices_table_arn
+      ]
   }
 }
 
 
 data "archive_file" "telegram_bot_lambda" {
   type        = "zip"
-  source_dir="src/telegram_bot_lambda/"
+  source_dir  = "src/telegram_bot_lambda/"
   output_path = "deployment_zips/lambda_function.zip"
 }
 
 data "archive_file" "request_layer_zip" {
   type        = "zip"
-  source_dir="src/lambda_layer/"
+  source_dir  = "src/lambda_layer/"
   output_path = "deployment_zips/layer.zip"
 }
 
 resource "aws_lambda_layer_version" "requests_layer" {
-  layer_name = "requests"
-  filename   = "layer.zip"
+  layer_name          = "requests"
+  filename            = "layer.zip"
   compatible_runtimes = ["python3.9"]
 }
 
 resource "null_resource" "install_requests" {
   triggers = {
-    src_hash = "${data.archive_file.request_layer_zip.output_sha}"
+    src_hash     = "${data.archive_file.request_layer_zip.output_sha}"
     requirements = "${filemd5("src/requirements.txt")}"
   }
 
@@ -88,14 +94,14 @@ resource "null_resource" "install_requests" {
 
 
 resource "aws_lambda_function" "temperature_alarm" {
-  function_name    = "temperature_alarm"
-  handler          = "temperature_alarm_lambda.lambda_handler"
-  runtime          = "python3.9"
-  timeout          = 20
-  memory_size      = 128
+  function_name = "temperature_alarm"
+  handler       = "temperature_alarm_lambda.lambda_handler"
+  runtime       = "python3.9"
+  timeout       = 20
+  memory_size   = 128
 
-  role             = aws_iam_role.lambda_execution_role.arn
-  filename         = data.archive_file.temperature_alarm_lambda.output_path
+  role     = aws_iam_role.lambda_execution_role.arn
+  filename = data.archive_file.temperature_alarm_lambda.output_path
 
   source_code_hash = data.archive_file.temperature_alarm_lambda.output_base64sha256
 
@@ -103,16 +109,16 @@ resource "aws_lambda_function" "temperature_alarm" {
   environment {
     variables = {
       TELEGRAM_TOKEN = var.telegram_token,
-      TZ = var.timezone,
-      SHELLY_URL = var.shelly_url,
-      SHELLY_AUTH = var.shelly_auth
+      TZ             = var.timezone,
+      SHELLY_URL     = var.shelly_url,
+      SHELLY_AUTH    = var.shelly_auth
     }
   }
 }
 
 data "archive_file" "temperature_alarm_lambda" {
   type        = "zip"
-  source_dir="src/temperature_alarm_lambda/"
+  source_dir  = "src/temperature_alarm_lambda/"
   output_path = "deployment_zips/temperature_alarm_lambda_function.zip"
 }
 

@@ -35,3 +35,8 @@ variable "ruuvi_measurement_stats_table_arn" {
   description = "The ARN of the DynamoDB table to grant access to."
   type        = string
 }
+
+variable "shelly_devices_table_arn" {
+  description = "The ARN of the DynamoDB table to grant access to."
+  type        = string
+}

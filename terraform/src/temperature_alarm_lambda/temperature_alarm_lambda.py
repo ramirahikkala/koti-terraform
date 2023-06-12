@@ -18,6 +18,7 @@ config_table = dynamodb.Table('ruuvi_configuration')
 data_table = dynamodb.Table('ruuvi')
 stats_table = dynamodb.Table('measurement_stats')
 subscriber_table = dynamodb.Table(SUBSCRIPTION_TABLE_NAME)
+shelly_devices_table = dynamodb.Table('shelly_devices')
 
 def set_last24h_min_max():
     config = get_configuration()
@@ -120,7 +121,26 @@ def is_daytime():
     now = datetime.now()
     return now.hour >= 8 and now.hour <= 22
 
-def control_shelly_device(device_id, action):
+def update_shelly_state(device_id, state):
+
+    
+    # Update the device status in the shelly_devices table
+    response = shelly_devices_table.update_item(
+        Key={
+            'id': device_id,
+        },
+        UpdateExpression="set deviceStatus=:s, lastUpdated=:lu",
+        ExpressionAttributeValues={
+            ':s': state,
+            ':lu': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+        },
+        ReturnValues="UPDATED_NEW"
+    )
+
+    # Return the response for confirmation
+    return response
+
+def do_action(device_id, action):
     print(f"Controlling device {device_id} with action {action}")
     data = {
         'channel': '0',
@@ -129,8 +149,42 @@ def control_shelly_device(device_id, action):
         'auth_key': SHELLY_AUTH
     }
 
+    # Send the request to the Shelly device
     response = requests.post(f"{SHELLY_URL}/device/relay/control", data=data)
-    print(response.text)
+    if response.status_code != 200:
+        print(f"Error controlling device {device_id}: {response.status_code}")
+        send_telegram_message(f"Error controlling device {device_id}: {response.status_code}")
+    else:
+        update_shelly_state(device_id, action)
+
+
+def control_shelly_device(device_id, action):
+
+    # Get the current device status from the DynamoDB table
+    response = shelly_devices_table.get_item(
+        Key={
+            'id': device_id,
+        }
+    )
+
+    # If the item was found in the table
+    if 'Item' in response:
+        current_status = response['Item'].get('deviceStatus')
+        last_updated_str = response['Item'].get('lastUpdated')
+
+        # Parse the lastUpdated string into a datetime object
+        last_updated = datetime.strptime(last_updated_str, '%Y-%m-%dT%H:%M:%S.%fZ')
+
+        # If the current status is different from the intended action or if the last status update was more than one hour ago
+        if current_status != action or datetime.utcnow() - last_updated > timedelta(hours=1):
+            do_action(device_id, action)
+
+            # Update the device status in the DynamoDB table
+            update_shelly_state(device_id, action)
+    else:
+        # If the device was not found in the table, just do the action (this is for new devices)
+        do_action(device_id, action)
+
 
 
 def check_temperature_limits():
