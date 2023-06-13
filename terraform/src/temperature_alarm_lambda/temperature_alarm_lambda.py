@@ -142,11 +142,12 @@ def update_shelly_state(device_id, state):
 
 def do_action(device_id, action):
 
-    shelly_status = fetch_shelly_device_status(device_id)
-    if not shelly_status['online']:
-        print(f"Device {device_id} is offline")
-        send_telegram_message(f"Device {device_id} is offline")
-        return
+    # TODO: This leads to Request limit reached error:
+    # shelly_status = fetch_shelly_device_status(device_id)
+    # if not shelly_status['online']:
+    #     print(f"Device {device_id} is offline")
+    #     send_telegram_message(f"Device {device_id} is offline")
+    #     return
 
     print(f"Controlling device {device_id} with action {action}")
     data = {
