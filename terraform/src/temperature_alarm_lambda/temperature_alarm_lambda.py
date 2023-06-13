@@ -203,9 +203,7 @@ def control_shelly_device(device_id, action):
         # If the current status is different from the intended action or if the last status update was more than one hour ago
         if current_status != action or datetime.utcnow() - last_updated > timedelta(hours=1):
             do_action(device_id, action)
-
-            # Update the device status in the DynamoDB table
-            update_shelly_state(device_id, action)
+            
     else:
         # If the device was not found in the table, just do the action (this is for new devices)
         do_action(device_id, action)
