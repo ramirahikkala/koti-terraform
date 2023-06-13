@@ -158,9 +158,10 @@ def do_action(device_id, action):
 
     # Send the request to the Shelly device
     response = requests.post(f"{SHELLY_URL}/device/relay/control", data=data)
+    
     if response.status_code != 200:
-        print(f"Error controlling device {device_id}: {response.status_code}")
-        send_telegram_message(f"Error controlling device {device_id}: {response.status_code}")
+        print(f"Error controlling device {device_id}: {response.status_code}: {response.text}")
+        send_telegram_message(f"Error controlling device {device_id}: {response.status_code}: {response.text}")
     else:
         update_shelly_state(device_id, action)
 
