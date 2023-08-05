@@ -14,6 +14,10 @@ data "aws_secretsmanager_secret_version" "shelly_secrets" {
   secret_id = "prod/shelly"
 }
 
+data "aws_secretsmanager_secret_version" "kasviluettelo_secrets" {
+  secret_id = "kasviluettelo"
+}
+
 locals {
   db_creds = jsondecode(
     data.aws_secretsmanager_secret_version.creds.secret_string
@@ -83,4 +87,15 @@ module "api_gateway_telegram_bot" {
   source = "./modules/api_gateway_telegram_bot"
   common_tags = local.common_tags
   telegram_bot_invoke_arn = module.lambda_telegram_bot.telegram_bot_lambda_invoke_arn
+}
+
+module "plant_count_lambda" {
+  source        = "./modules/lambda_plant_count"
+  kasvisluettelo_creds = data.aws_secretsmanager_secret_version.kasviluettelo_secrets.secret_string    
+  python_dependencies_layer_arn = module.lambda_telegram_bot.python_dependencies_layer_arn
+}
+
+module "api_gateway_plant_count" {
+  source = "./modules/api_gateway_count_plants"
+  plant_count_invoke_arn = module.plant_count_lambda.plant_count_lambda_invoke_arn
 }
