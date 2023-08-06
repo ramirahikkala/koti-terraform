@@ -2,6 +2,8 @@ import json
 import boto3
 from datetime import datetime
 from boto3.dynamodb.conditions import Key
+from decimal import Decimal
+from datetime import datetime, timedelta
 
 import traceback
 
@@ -50,41 +52,65 @@ def get_configuration_for_new_sensor(mac):
         ]
     }
 
+def clear_item(stats_item, temperature, measurement_time, name, stats_type):
+    stats_item = {
+        'measurement_name': name,
+        'statistics_type': stats_type,
+        'temperature': {                
+            'min': { 'value': temperature, 'datetime': measurement_time },
+            'max': { 'value': temperature, 'datetime': measurement_time },
+            'latest': { 'value': temperature, 'datetime': measurement_time },
+            'sum': temperature,
+            'count': 1,
+        },
+    }
+    return stats_item
+
 def set_temperature_stats(name, temperature, measurement_time):
 
+    set_stats_for_type(name, temperature, measurement_time, 'alltime')
+    set_stats_for_type(name, temperature, measurement_time, 'today')
+
+def set_stats_for_type(name, temperature, measurement_time, stats_type):
+
     # Get the current daily min/max values for this sensor.
-    response = stats_table.query(
-        KeyConditionExpression=Key('measurement_name').eq(name)
-        & Key('statistics_type').eq('alltime')        
-    )        
+    response = stats_table.get_item(
+        Key={"measurement_name": name, "statistics_type": "today"}
+    )   
     
-    # If there's no item for the current day, create a new one with the current measurement as the min and max.
-    if 'Items' not in response or len(response['Items']) == 0:
-        stats_item = {
-            'measurement_name': name,
-            'statistics_type': 'alltime',
-            'temperature': {                
-                'min': { 'value': temperature, 'datetime': measurement_time },
-                'max': { 'value': temperature, 'datetime': measurement_time },
-                'sum': temperature,
-                'count': 1,
-            },
-            # You can do the same for other measurements here.
-        }
+    temperature = Decimal(str(temperature))    
+
+    if 'Item' not in response:
+        stats_item = clear_item(stats_item, temperature, measurement_time, name, stats_type)
     else:
         # Otherwise, update the min/max values with the current measurement.
-        stats_item = response['Items'][0]
-        
+        stats_item = response['Item']
+
+        date_string = stats_item['temperature']['latest']['datetime']
+        latest_measurement_date = datetime.strptime(date_string, "%Y-%m-%dT%H:%M:%S.%fZ").date()
+
+        # Get the current date
+        current_date = datetime.now().date()
+
+        #Turn of the day. Store yesterdays values and clear todays
+        if stats_type == 'today' and latest_measurement_date == current_date - timedelta(days=1):
+            stats_item['statistics_type'] = 'yesterday'
+            stats_table.put_item(Item=stats_item)
+
+            stats_item = clear_item(stats_item, temperature, measurement_time, name, stats_type)            
+            
+             
         if stats_item['temperature']['min']['value'] > temperature:
             stats_item['temperature']['min'] = { 'value': temperature, 'datetime': measurement_time }
             
         if stats_item['temperature']['max']['value'] < temperature:
             stats_item['temperature']['max'] = { 'value': temperature, 'datetime': measurement_time }
             
-        stats_item['temperature']['sum'] += temperature
-        stats_item['temperature']['count'] += 1
-        # You can do the same for other measurements here.
+        stats_item['temperature']['sum'] += Decimal(str(temperature))
+        stats_item['temperature']['count'] += Decimal('1')    
+        stats_item['temperature']['latest'] = { 'value': temperature, 'datetime': measurement_time }
 
+    
 
     # Store the updated statistics data in DynamoDB.
     response = stats_table.put_item(Item=stats_item)

@@ -19,34 +19,7 @@ data_table = dynamodb.Table('ruuvi')
 stats_table = dynamodb.Table('measurement_stats')
 subscriber_table = dynamodb.Table(SUBSCRIPTION_TABLE_NAME)
 shelly_devices_table = dynamodb.Table('shelly_devices')
-
-def set_last24h_min_max():
-    config = get_configuration()
-    for mac, config_data in config.items():
-        name = config_data['name']
-        response = data_table.query(
-        KeyConditionExpression=Key('name').eq(name) & Key('datetime').gte((datetime.utcnow() - timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S.%fZ')),
-        )
-
-        items = response['Items']
-        # Sort by temperature
-        items.sort(key=lambda x: float(x['temperature_calibrated']))
-        # Get min and max
-        min = items[0]
-        max = items[-1]
-
-        stats_item = {
-            'measurement_name': name,
-            'statistics_type': 'past24h',
-            'temperature': {                
-                'min': { 'value': min['temperature_calibrated'], 'datetime': min['datetime'] },
-                'max': { 'value': max['temperature_calibrated'], 'datetime': max['datetime'] },
-
-            },
-        }
-
-        response = stats_table.put_item(Item=stats_item)
-        
+   
 
 def get_subscribers():
     response = subscriber_table.scan()
@@ -104,18 +77,36 @@ def update_alarm_state(mac, state):
         ReturnValues="UPDATED_NEW"
     )
 
-def get_latest_measurement(name):
-    response = data_table.query(
-        KeyConditionExpression=Key('name').eq(name),
-        ScanIndexForward=False,  # Sort by datetime in descending order
-        Limit=1
+def get_today_measurement(name):
+    response = stats_table.get_item(
+        Key={"measurement_name": name, "statistics_type": "today"}
     )
-    if(response['Items']):
-        item = response['Items'][0]
-        dt = datetime.strptime(item['datetime'], '%Y-%m-%dT%H:%M:%S.%fZ')
-        temp = item['temperature_calibrated']
-        return {'datetime': dt, 'temperature_calibrated': temp}
-    return None
+
+    if "Item" in response:
+        stats_item = response["Item"]
+        return {
+            "min": stats_item["temperature"]["min"]["value"],
+            "min_datetime": stats_item["temperature"]["min"]["datetime"],
+            "max": stats_item["temperature"]["max"]["value"],
+            "max_datetime": stats_item["temperature"]["max"]["datetime"],
+            "latest": {
+                "datetime": datetime.strptime(
+                    stats_item["temperature"]["latest"]["datetime"],
+                    "%Y-%m-%dT%H:%M:%S.%fZ"),
+                "datetime_str": stats_item["temperature"]["latest"]["datetime"],
+                "temperature": stats_item["temperature"]["latest"]["value"],
+                "temperature_calibrated": stats_item["temperature"]["latest"]["value"]                
+            }
+        }
+
+    return {
+        "min": -99,
+        "min_datetime": datetime.now(),
+        "max": 99,
+        "max_datetime": datetime.now(),
+        "latest": None
+    }
+
 
 def is_daytime():
     now = datetime.now()
@@ -237,8 +228,9 @@ def check_temperature_limits():
 
     for mac, config_data in config.items():
         
-        # Get the latest temperature measurement for the current name
-        latest_measurement = get_latest_measurement(config_data['name'])
+        # Get the latest temperature measurement for the current name        
+        today = get_today_measurement(config_data['name'])
+        latest_measurement = today['latest']
 
         if latest_measurement:
             calibrated_temperature = float(latest_measurement['temperature_calibrated'])
